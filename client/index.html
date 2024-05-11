@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<meta charset="utf-8">
+		<title>Gcode visualizing server</title>
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+	<body>
+		<div id="float_container"><div id="progress_bar"><div id="progress_bar__percent"></div></div></div>
+		<div id="panel" class="panel">
+			<div class="panel__header">ID: <input id="token" value="" readonly><button id="open_button" class="btn">📂</button></div>
+			<div id="cursor_position" style="display:none;" class="panel__header">Cursor: <span id="cursor_position__text"></span></div>
+		</div>
+		<div id="three_container"></div>
+		<!--
+		<div class="panel">
+			<div class="panel__header">ID: <input id="token" value="" readonly><button id="open_button" class="btn">📂</button></div>
+			<div class="panel__body">
+				<div id="line-numbers" class="panel__lines"></div>
+				<textarea id="textarea" class="panel__textarea"></textarea>
+			</div>
+		</div>
+		-->
+		<script type="module" src="/main.js"></script>
+	</body>
+</html>
