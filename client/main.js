@@ -16,33 +16,41 @@ gcode_renderer.animate(true);
 
 const progress_bar = new ProgressBar();
 const parser = new JsonGeometryParser();
-parser.enableLayerView = true;
 
 const gui = new GuiOptions();
+let open_file = null;
+
+const processFile = (file) => {
+  gcode_renderer.reset();
+  parser.reset();
+  document.getElementById('token').value = file ? file.name : '';
+  
+  if (!file) return;
+  open_file = file;
+  
+  const gcode_stream = new GCodeLineStream(gcodeToJson);
+  const reader = file.stream().pipeThrough(gcode_stream).getReader();
+  gui.disable();
+  reader.read().then(function processText({value, done}) {
+    if (done) {
+      progress_bar.reset();
+      gcode_renderer.drawPoints(parser.cursorPosition);
+      gui.enable();
+      return;
+    }
+    const {readBytes, results} = value;
+    progress_bar.update(readBytes/file.size*100);
+    if (results.length > 0) {
+      parser.process(value.results);
+      gcode_renderer.draw(parser.geometry);
+    }
+    reader.read().then(processText);
+  });
+}; 
 
 document.getElementById('open_button').addEventListener('click', () => {
   const blob = fileOpen({extensions: ['.gcode', '.txt'], multiple: false});
-  blob.then((file) => {
-    gcode_renderer.reset();
-    parser.reset();
-    document.getElementById('token').value = file.name;
-    const gcode_stream = new GCodeLineStream(gcodeToJson);
-    const reader = file.stream().pipeThrough(gcode_stream).getReader();
-    reader.read().then(function processText({value, done}) {
-      if (done) {
-        progress_bar.reset();
-        gcode_renderer.drawPoints(parser.cursorPosition);
-        return;
-      }
-      const {readBytes, results} = value;
-      progress_bar.update(readBytes/file.size*100);
-      if (results.length > 0) {
-        parser.process(value.results);
-        gcode_renderer.draw(parser.geometry);
-      }
-      reader.read().then(processText);
-    });
-  });
+  blob.then(processFile);
 });
 
 gui.on('hide points', (value) => {
@@ -56,8 +64,16 @@ gui.on('point size', (value) => {
     gcode_renderer.pointGeometry.material.needsUpdate = true;
   }
 });
+gui.on('layer height', (value) => {parser.layerHeight = value;processFile(open_file);});
 gui.on('hide grid', (value) => {gcode_renderer.helper.visible = !value;});
-gui.on('flat layer', (value) => {console.log(value);});
+gui.on('hide layers', (value) => {parser.enableLayerView = !value;processFile(open_file);});
+gui.on('x axis', (value) => {parser.x_axis = value;processFile(open_file);});
+gui.on('y axis', (value) => {parser.y_axis = value;processFile(open_file);});
+gui.on('z axis', (value) => {parser.z_axis = value;processFile(open_file);});
+gui.on('cylindical diameter', (value) => {gcode_renderer.diameter = value; processFile(open_file);});
+gui.on('cylindical main axis', (value) => {gcode_renderer.cylindicalMainAxis = value; processFile(open_file);});
+gui.on('enable cylindical', (value) => {gcode_renderer.enableCylindicalTransform = value; processFile(open_file);});
+gui.on('curve resolution', (value) => {gcode_renderer.curveResolution = value; processFile(open_file);});
 
 // Socket.io ///////////////////////////////////////////////////////////
 // TODO: Support rendering from socketio

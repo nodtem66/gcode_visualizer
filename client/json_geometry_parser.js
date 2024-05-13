@@ -6,11 +6,13 @@ class JsonGeometryParser {
   positionSystem = ABSOLUTE_POSITION;
   feedrate = 100;
   layerHeight = 0.1;
-  enableLayerView = true;
+  enableLayerView = false;
   totalLayers = 0;
   geometry = [];
   cursorPosition = [];
-  lineCount = 0;
+  x_axis = 'x';
+  y_axis = 'y';
+  z_axis = 'z';
 
   reset() {
     this.position = {x:0, y:0, z:0};
@@ -18,7 +20,6 @@ class JsonGeometryParser {
     this.cursorPosition = [];
     this.positionSystem = ABSOLUTE_POSITION;
     this.feedrate = 100;
-    this.lineCount = 0;
   }
 
   process(gcodeArray) {
@@ -48,8 +49,6 @@ class JsonGeometryParser {
       const val = tag[key];
       if (key === 'CTS') {
         this.feedrate = val;
-      } else if (key === 'diameter') {
-        this.diameter = val;
       } else if (key === 'layer_height') {
         this.layerHeight = val;
       } else if (key === 'total_layers' || key === 'total_layer' || key === 'totalLayers' || key === 'totalLayer') {
@@ -61,32 +60,47 @@ class JsonGeometryParser {
             this.position.z = z;
           }
         }
-      } else if (key === 'enable_layer_view') {
-        this.enableLayerView = val;
       }
     }
   }
 
-  G0(args) {
-    const feedrate = args.f || this.feedrate;
-    const prevPosition = Object.assign({}, this.position);
+  getAxisValue(args, axis) {
+    if (this[axis+'_axis'] !== undefined) {
+      return args[this[axis+'_axis']];
+    }
+    if (args[axis] !== undefined) {
+      return args[axis];
+    }
+    return null;
+  }
+  
+  getAllAxesValues(args) {
+    const vals = {x:0, y:0, z:0};
     if (this.isAbsolutePosition()) {
-      this.position.x = args.x || this.position.x;
-      this.position.y = args.y || this.position.y;
-      this.position.z = args.z || this.position.z;
+      vals.x = this.getAxisValue(args, 'x') || this.position.x;
+      vals.y = this.getAxisValue(args, 'y') || this.position.y;
+      vals.z = this.getAxisValue(args, 'z') || this.position.z;
     }
     else if (this.isRelativePosition()) {
-      this.position.x += args.x || 0;
-      this.position.y += args.y || 0;
-      this.position.z += args.z || 0;
+      vals.x = this.position.x + (this.getAxisValue(args, 'x') || 0);
+      vals.y = this.position.y + (this.getAxisValue(args, 'y') || 0);
+      vals.z = this.position.z + (this.getAxisValue(args, 'z') || 0);
     }
+    return vals;
+  }
+
+  G0(args) {
+    const prevPosition = Object.assign({}, this.position);
+    const vals = this.getAllAxesValues(args);
+    this.position.x = vals.x;
+    this.position.y = vals.y;
+    this.position.z = vals.z;
     
     this.geometry.push({
       type: 'line',
       start: [prevPosition.x, prevPosition.y, prevPosition.z],
       end: [this.position.x, this.position.y, this.position.z],
-      line: this.lineCount,
-      feedrate: feedrate
+      feedrate: args.f || this.feedrate
     });
   }
 
@@ -95,18 +109,11 @@ class JsonGeometryParser {
   }
 
   G2(args, dir='cw') {
-    const feedrate = args.f || this.feedrate;
     const prevPosition = Object.assign({}, this.position);
-    if (this.isAbsolutePosition()) {
-      this.position.x = args.x || this.position.x;
-      this.position.y = args.y || this.position.y;
-      this.position.z = args.z || this.position.z;
-    }
-    else if (this.isRelativePosition()) {
-      this.position.x += args.x || 0;
-      this.position.y += args.y || 0;
-      this.position.z += args.z || 0;
-    }
+    const vals = this.getAllAxesValues(args);
+    this.position.x = vals.x;
+    this.position.y = vals.y;
+    this.position.z = vals.z;
 
     const centerX = prevPosition.x + (args.i || 0);
     const centerY = prevPosition.y + (args.j || 0);
@@ -117,7 +124,6 @@ class JsonGeometryParser {
       start: [prevPosition.x, prevPosition.y, prevPosition.z],
       end: [this.position.x, this.position.y, this.position.z],
       center: [centerX, centerY],
-      line: this.lineCount,
       feedrate: args.f || this.feedrate
     });
   }

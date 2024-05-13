@@ -58,6 +58,12 @@ class GcodeRenderer {
   pointer = new THREE.Vector2();
   cursorPositionContainer = document.getElementById('cursor_position');
   cursorPositionText = document.getElementById('cursor_position__text');
+
+  enableCylindicalTransform = false;
+  diameter = 3;
+  cylindicalMainAxis = 'x';
+  curveResolution = 20;
+
   constructor() {
     this.document = document;
     this.window = window;
@@ -146,7 +152,6 @@ class GcodeRenderer {
 
     // calculate pointer position in normalized device coordinates
     // (-1 to +1) for both components
-  
     this.pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
     this.pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
     this.queryPoint();
@@ -156,10 +161,8 @@ class GcodeRenderer {
   animate(force = false) {
     const updated = this.controls.update(this.clock.getDelta());
     if (updated || force) {
-      //this.queryPoint();
       this.renderer.render(this.scene, this.camera);
       this.viewportGizmo.render();
-    // Update the OrbitControls
     }
   }
 
@@ -171,18 +174,13 @@ class GcodeRenderer {
     const intersections = this.raycaster.intersectObjects([ this.pointGeometry ], false );
     const nearObj = ( intersections.length ) > 0 ? intersections[ 0 ] : null;
     if (nearObj !== null) {
-      //const color = this.pointGeometry.geometry.attributes.color;
-      //const colorArray = color.array;
       for (let i=0; i < intersections.length; i++) {
         if (Math.abs(intersections[i].distance - nearObj.distance) < 0.01) {
           const index = intersections[i].index*3;
           const point = this.pointGeometry.geometry.attributes.position.array.slice(index, index+3);
           this.cursorPositionText.innerText = `(${point[0].toFixed(3)}, ${point[1].toFixed(3)}, ${point[2].toFixed(3)})`;
-          this.cursorPositionContainer.style.display = 'block';
-          //colorArray[index] = 1;
-        }
+          }
       }
-      //color.needsUpdate = true;
     }
   }
 
@@ -220,27 +218,65 @@ class GcodeRenderer {
       }
       lineCount.push(g.line);
     });
-    const points = path.getPoints();
-    //console.log(`Drawing ${points.length} points from ${geometry.length}`)
-    if (points.length === 0) return;
-    const pathGeometry = new THREE.BufferGeometry().setFromPoints(points);
-    
-    const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
-    if (z > 0) {
-      //lineMaterial.color.setHex(0x00ff00);
-      pathGeometry.translate(0, 0, z);
+    if (path.curves.length === 0) return;
+    // Normal flat scaffold
+    if (!this.enableCylindicalTransform) {
+      const points = path.getPoints();
+      const pathGeometry = new THREE.BufferGeometry().setFromPoints(points);
+      const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
+      if (z > 0) {
+        pathGeometry.translate(0, 0, z);
+      }
+      const line = new THREE.Line( pathGeometry, lineMaterial );
+      this.scene.add( line );
+    } 
+    // Cylindical scaffold
+    else {
+      const points = path.curves.flatMap(c => c.getSpacedPoints(this.curveResolution));
+      const transformedPoints = points.map((p) => {
+        let val;
+        if (this.cylindicalMainAxis === 'x') val = {x: p.x, y: p.y, z};
+        else if (this.cylindicalMainAxis === 'y') val = {x: p.y, y: p.x, z};
+        else if (this.cylindicalMainAxis === 'z') val = {x: z, y: p.y, z: p.x};
+        const radius = this.diameter/2.0;
+        const theta = val.y/radius;
+        const y = val.x;
+        return new THREE.Vector3().setFromCylindricalCoords(radius+val.z, theta, y)
+      });
+      const pathGeometry = new THREE.BufferGeometry().setFromPoints(transformedPoints);
+      const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
+      const line = new THREE.Line( pathGeometry, lineMaterial );
+      if (this.cylindicalMainAxis === 'x') line.rotateZ(-Math.PI/2);
+      else if (this.cylindicalMainAxis === 'z') line.rotateX(Math.PI/2);
+      this.scene.add( line );
     }
-    //const lineGeometry = new THREE.BufferGeometry().setFromPoints( points );
-    const line = new THREE.Line( pathGeometry, lineMaterial );
-    this.scene.add( line );
   }
 
   drawPoints(points) {
     const buffer = new THREE.BufferGeometry();
-    buffer.setAttribute( 'position', new THREE.Float32BufferAttribute( points.flat(), 3 ) );
+    // Normal flat scaffold
+    if (!this.enableCylindicalTransform) {
+      buffer.setAttribute( 'position', new THREE.Float32BufferAttribute( transformedPoints.flat(), 3 ) );
+    }
+    // Cylindical scaffold
+    else {
+      const transformedPoints = points.map((p) => {
+        let val;
+        if (this.cylindicalMainAxis === 'x') val = {x: p[0], y: p[1], z: p[2]};
+        else if (this.cylindicalMainAxis === 'y') val = {x: p[1], y: [0], z: p[2]};
+        else if (this.cylindicalMainAxis === 'z') val = {x: p[2], y: p[1], z: p[0]};
+        const radius = this.diameter/2.0 + val.z;
+        const theta = val.y/(radius - val.z);
+        const l = val.x;
+        return [radius * Math.sin(theta), l, radius * Math.cos(theta)];
+      });
+      buffer.setAttribute( 'position', new THREE.Float32BufferAttribute( transformedPoints.flat(), 3 ) );
+    }
     //buffer.setAttribute( 'color', new THREE.Float32BufferAttribute( points.map(() => [0, 0, 0]).flat(), 3 ) );
     const material = new THREE.PointsMaterial( { size: 3, sizeAttenuation:true, vertexColors: true } );
     this.pointGeometry = new THREE.Points( buffer , material );
+    if (this.cylindicalMainAxis === 'x') this.pointGeometry.rotateZ(-Math.PI/2);
+      else if (this.cylindicalMainAxis === 'z') this.pointGeometry.rotateX(Math.PI/2);
     this.pointGeometry.geometry.computeBoundingSphere();
     this.pointGeometry.geometry.computeBoundingBox();
     this.fitCameraToGeometry(this.pointGeometry.geometry);
