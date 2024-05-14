@@ -174,13 +174,15 @@ class GcodeRenderer {
     const intersections = this.raycaster.intersectObjects([ this.pointGeometry ], false );
     const nearObj = ( intersections.length ) > 0 ? intersections[ 0 ] : null;
     if (nearObj !== null) {
-      for (let i=0; i < intersections.length; i++) {
-        if (Math.abs(intersections[i].distance - nearObj.distance) < 0.01) {
-          const index = intersections[i].index*3;
-          const point = this.pointGeometry.geometry.attributes.position.array.slice(index, index+3);
-          this.cursorPositionText.innerText = `(${point[0].toFixed(3)}, ${point[1].toFixed(3)}, ${point[2].toFixed(3)})`;
-          }
-      }
+      const index = nearObj.index*3;
+      const point = this.pointGeometry.geometry.attributes.position.array.slice(index, index+3);
+      this.cursorPositionText.innerText = `(${point[0].toFixed(3)}, ${point[1].toFixed(3)}, ${point[2].toFixed(3)})`;
+      this.cursorPositionContainer.style.display = 'block';
+      //for (let i=0; i < intersections.length; i++) {
+        //if (Math.abs(intersections[i].distance - nearObj.distance) < 0.01) {
+        // other points are too close  
+        //}
+      //}
     }
   }
 
@@ -256,7 +258,7 @@ class GcodeRenderer {
     const buffer = new THREE.BufferGeometry();
     // Normal flat scaffold
     if (!this.enableCylindicalTransform) {
-      buffer.setAttribute( 'position', new THREE.Float32BufferAttribute( transformedPoints.flat(), 3 ) );
+      buffer.setAttribute( 'position', new THREE.Float32BufferAttribute( points.flat(), 3 ) );
     }
     // Cylindical scaffold
     else {
@@ -275,8 +277,12 @@ class GcodeRenderer {
     //buffer.setAttribute( 'color', new THREE.Float32BufferAttribute( points.map(() => [0, 0, 0]).flat(), 3 ) );
     const material = new THREE.PointsMaterial( { size: 3, sizeAttenuation:true, vertexColors: true } );
     this.pointGeometry = new THREE.Points( buffer , material );
-    if (this.cylindicalMainAxis === 'x') this.pointGeometry.rotateZ(-Math.PI/2);
+    
+    if (this.enableCylindicalTransform) {
+      if (this.cylindicalMainAxis === 'x') this.pointGeometry.rotateZ(-Math.PI/2);
       else if (this.cylindicalMainAxis === 'z') this.pointGeometry.rotateX(Math.PI/2);
+    }
+    
     this.pointGeometry.geometry.computeBoundingSphere();
     this.pointGeometry.geometry.computeBoundingBox();
     this.fitCameraToGeometry(this.pointGeometry.geometry);
