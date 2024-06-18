@@ -49,7 +49,7 @@ const processFile = (file) => {
 }; 
 
 document.getElementById('open_button').addEventListener('click', () => {
-  const blob = fileOpen({extensions: ['.gcode', '.txt'], multiple: false});
+  const blob = fileOpen({extensions: ['.gcode', '.txt', '.g'], multiple: false});
   blob.then(processFile);
 });
 

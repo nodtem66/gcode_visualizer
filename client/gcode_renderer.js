@@ -216,7 +216,12 @@ class GcodeRenderer {
         const radius = Math.sqrt((g.start[0] - g.center[0]) ** 2 + (g.start[1] - g.center[1]) ** 2);
         const startAngle = Math.atan2(g.start[1] - g.center[1], g.start[0] - g.center[0]);
         const endAngle = Math.atan2(g.end[1] - g.center[1], g.end[0] - g.center[0]);
-        path.absarc(g.center[0], g.center[1], radius, startAngle, endAngle, g.dir === 'cw');
+        if (Math.abs(startAngle - endAngle) > 1e-3) {
+          path.absarc(g.center[0], g.center[1], radius, startAngle, endAngle, g.dir === 'cw');
+        } else {
+          path.absarc(g.center[0], g.center[1], radius, startAngle, startAngle+2*Math.PI, g.dir === 'cw');
+          path.absarc(g.center[0], g.center[1], radius, startAngle+2*Math.PI, endAngle, g.dir === 'cw');
+        }
       }
       lineCount.push(g.line);
     });
@@ -234,7 +239,14 @@ class GcodeRenderer {
     } 
     // Cylindical scaffold
     else {
-      const points = path.curves.flatMap(c => c.getSpacedPoints(this.curveResolution));
+      const points = path.curves.flatMap(c => {
+        const l = c.getLength();
+        if (l < 0.1) return c.getPoints(2);
+        else if (l < 0.3) return c.getSpacedPoints(3);
+        else if (l < 0.5) return c.getSpacedPoints(4);
+        else if (l < 1) return c.getSpacedPoints(5);
+        return c.getSpacedPoints(10);
+      });
       const transformedPoints = points.map((p) => {
         let val;
         if (this.cylindicalMainAxis === 'x') val = {x: p.x, y: p.y, z};
