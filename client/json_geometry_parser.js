@@ -32,7 +32,6 @@ class JsonGeometryParser {
       if (x.tag) {
         this.processComment(x.tag);
       }
-      this.cursorPosition.push([this.position.x, this.position.y, this.position.z]);
     });
   }
 
@@ -71,15 +70,18 @@ class JsonGeometryParser {
     if (args[axis] !== undefined) {
       return args[axis];
     }
-    return null;
+    return;
   }
   
   getAllAxesValues(args) {
     const vals = {x:0, y:0, z:0};
     if (this.isAbsolutePosition()) {
-      vals.x = this.getAxisValue(args, 'x') || this.position.x;
-      vals.y = this.getAxisValue(args, 'y') || this.position.y;
-      vals.z = this.getAxisValue(args, 'z') || this.position.z;
+      const val_x = this.getAxisValue(args, 'x');
+      const val_y = this.getAxisValue(args, 'y');
+      const val_z = this.getAxisValue(args, 'z');
+      vals.x = val_x === undefined ? this.position.x : val_x;
+      vals.y = val_y === undefined ? this.position.y : val_y;
+      vals.z = val_z === undefined ? this.position.z : val_z;
     }
     else if (this.isRelativePosition()) {
       vals.x = this.position.x + (this.getAxisValue(args, 'x') || 0);
@@ -102,6 +104,7 @@ class JsonGeometryParser {
       end: [this.position.x, this.position.y, this.position.z],
       feedrate: args.f || this.feedrate
     });
+    this.cursorPosition.push([this.position.x, this.position.y, this.position.z]);
   }
 
   G1(args) {
@@ -115,8 +118,12 @@ class JsonGeometryParser {
     this.position.y = vals.y;
     this.position.z = vals.z;
 
-    const centerX = prevPosition.x + (args.i || 0);
-    const centerY = prevPosition.y + (args.j || 0);
+    let centerX = args.i || 0;
+    let centerY = args.j || 0;
+    if (this.isRelativePosition()) {
+      centerX += prevPosition.x;
+      centerY += prevPosition.y;
+    }
 
     this.geometry.push({
       type: 'arc',
@@ -126,6 +133,7 @@ class JsonGeometryParser {
       center: [centerX, centerY],
       feedrate: args.f || this.feedrate
     });
+    this.cursorPosition.push([this.position.x, this.position.y, this.position.z]);
   }
 
   G3(args) {

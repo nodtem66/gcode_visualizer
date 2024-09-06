@@ -61,6 +61,7 @@ class GcodeRenderer {
 
   enableCylindicalTransform = false;
   diameter = 3;
+  initialCylindicalHeight = 1.5;
   cylindicalMainAxis = 'x';
   curveResolution = 20;
 
@@ -191,7 +192,11 @@ class GcodeRenderer {
   }
 
   draw(geometry) {
-    if (geometry.length === 0) return;
+    if (geometry.length <= 1) return;
+    // if (this.enableCylindicalTransform) {
+    //   this.drawPath(geometry);
+    //   return;
+    // }
     const groupedByStartZ = geometry.reduce((acc, g) => {
       const key = g.start[2];
       if (!acc[key]) {
@@ -201,7 +206,7 @@ class GcodeRenderer {
       return acc;
     }, {});
     for (const z in groupedByStartZ) {
-      this.drawPath(groupedByStartZ[z], z);
+      this.drawPath(groupedByStartZ[z], parseFloat(z));
     }
   }
 
@@ -225,7 +230,7 @@ class GcodeRenderer {
       }
       lineCount.push(g.line);
     });
-    if (path.curves.length === 0) return;
+    if (path.curves.length <= 1) return;
     // Normal flat scaffold
     if (!this.enableCylindicalTransform) {
       const points = path.getPoints();
@@ -245,17 +250,18 @@ class GcodeRenderer {
         else if (l < 0.3) return c.getSpacedPoints(3);
         else if (l < 0.5) return c.getSpacedPoints(4);
         else if (l < 1) return c.getSpacedPoints(5);
-        return c.getSpacedPoints(10);
+        return c.getSpacedPoints(this.curveResolution);
       });
       const transformedPoints = points.map((p) => {
         let val;
         if (this.cylindicalMainAxis === 'x') val = {x: p.x, y: p.y, z};
         else if (this.cylindicalMainAxis === 'y') val = {x: p.y, y: p.x, z};
         else if (this.cylindicalMainAxis === 'z') val = {x: z, y: p.y, z: p.x};
-        const radius = this.diameter/2.0;
-        const theta = val.y/radius;
+        const radius = this.diameter / 2;
+        const height = this.initialCylindicalHeight + val.z;
+        const theta = radius > 0 ? val.y/radius : val.y/0.001;
         const y = val.x;
-        return new THREE.Vector3().setFromCylindricalCoords(radius+val.z, theta, y)
+        return new THREE.Vector3().setFromCylindricalCoords(height, theta, y)
       });
       const pathGeometry = new THREE.BufferGeometry().setFromPoints(transformedPoints);
       const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
@@ -279,10 +285,11 @@ class GcodeRenderer {
         if (this.cylindicalMainAxis === 'x') val = {x: p[0], y: p[1], z: p[2]};
         else if (this.cylindicalMainAxis === 'y') val = {x: p[1], y: [0], z: p[2]};
         else if (this.cylindicalMainAxis === 'z') val = {x: p[2], y: p[1], z: p[0]};
-        const radius = this.diameter/2.0 + val.z;
-        const theta = val.y/(radius - val.z);
+        const radius = this.diameter/2.0;
+        const height = this.initialCylindicalHeight + val.z;
+        const theta = val.y/(radius);
         const l = val.x;
-        return [radius * Math.sin(theta), l, radius * Math.cos(theta)];
+        return [height * Math.sin(theta), l, height * Math.cos(theta)];
       });
       buffer.setAttribute( 'position', new THREE.Float32BufferAttribute( transformedPoints.flat(), 3 ) );
     }

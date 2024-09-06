@@ -74,6 +74,7 @@ gui.on('cylindical diameter', (value) => {gcode_renderer.diameter = value; proce
 gui.on('cylindical main axis', (value) => {gcode_renderer.cylindicalMainAxis = value; processFile(open_file);});
 gui.on('enable cylindical', (value) => {gcode_renderer.enableCylindicalTransform = value; processFile(open_file);});
 gui.on('curve resolution', (value) => {gcode_renderer.curveResolution = value; processFile(open_file);});
+gui.on('cylindical height', (value) => {gcode_renderer.initialCylindicalHeight = value; processFile(open_file);});
 
 // Socket.io ///////////////////////////////////////////////////////////
 // TODO: Support rendering from socketio

@@ -15,6 +15,7 @@ class GuiOptions {
     'y axis': 'y',
     'z axis': 'z',
     'cylindical diameter': 3,
+    'cylindical height': 1.5,
     'enable cylindical': false,
     'cylindical main axis': 'x',
     'curve resolution': 20,
@@ -39,6 +40,7 @@ class GuiOptions {
     cylindicalOptions.add(this.settings, 'enable cylindical').name('Enable').onFinishChange(this.emit.bind(this, 'enable cylindical'));
     cylindicalOptions.add(this.settings, 'cylindical main axis', MAIN_AXIS_NAMES).name('Main Axis').onFinishChange(this.emit.bind(this, 'cylindical main axis'));
     cylindicalOptions.add(this.settings, 'cylindical diameter', 1, 100).name('Diameter').onFinishChange(this.emit.bind(this, 'cylindical diameter'));
+    cylindicalOptions.add(this.settings, 'cylindical height', 0, 100).name('Initial Height').onFinishChange(this.emit.bind(this, 'cylindical height'));
     cylindicalOptions.add(this.settings, 'curve resolution', 1, 1000, 1).name('Curve Resolution').onFinishChange(this.emit.bind(this, 'curve resolution'));
     this.gui = gui;
   }
