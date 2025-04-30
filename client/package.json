@@ -3,7 +3,6 @@
     "browser-fs-access": "^0.35.0",
     "camera-controls": "^2.8.3",
     "colornames": "^1.1.1",
-    "socket.io-client": "^4.7.5",
     "three": "^0.163.0",
     "three-viewport-gizmo": "^0.1.5"
   },

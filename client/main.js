@@ -75,29 +75,3 @@ gui.on('cylindical main axis', (value) => {gcode_renderer.cylindicalMainAxis = v
 gui.on('enable cylindical', (value) => {gcode_renderer.enableCylindicalTransform = value; processFile(open_file);});
 gui.on('curve resolution', (value) => {gcode_renderer.curveResolution = value; processFile(open_file);});
 gui.on('cylindical height', (value) => {gcode_renderer.initialCylindicalHeight = value; processFile(open_file);});
-
-// Socket.io ///////////////////////////////////////////////////////////
-// TODO: Support rendering from socketio
-// const socket = io('localhost:8000', {transports: ['websocket', 'polling']});
-// socket.on('connect', () => {
-//   console.log('Connected to server');
-//   document.getElementById('token').value = socket.id;
-//   socket.emit('register', '');
-//   textarea.value = '';
-// });
-
-// socket.on('gcode', (data) => {
-//   textarea.value += data;
-// });
-// socket.on('gcode_finished', () => {
-//   displayLineNumbers();
-// });
-// socket.on('gcode_pos', (data) => {
-//   console.log('gcode_pos');
-//   console.log(data);
-// });
-// socket.on('gcode_fline', (data) => {
-//   console.log('gcode_fline');
-//   console.log(data);
-// });
-////////////////////////////////////////////////////////////////////////
