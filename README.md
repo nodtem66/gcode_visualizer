@@ -3,7 +3,7 @@
 [Online GCODE viewer](https://gcode-visualizer.pages.dev/) hosted by Cloudflare Pages.
 
 
-An alternative G-code visualizer that allows to visualize Gcode for printing a tube. Many people use [Ncviewer](https://ncviewer.com/) for visualizing a G-code file, which is maintained by one developer. I, for one, cannot ensure that this great tool will last forever. So, I decided to create this program from scatch and keep the functionality as small as possible. Please feel free to fork and modify it. By this way, the project will be sustainable for the community.
+An alternative G-code viewer that allows to visualize flat or tube structure. Many people use [Ncviewer](https://ncviewer.com/) for visualizing a G-code file, which is maintained by one developer. I, for one, cannot ensure that this great tool will last forever. So, I decided to create this program from scatch and keep the functionality as small as possible. Please feel free to fork and modify it. By this way, the project will be sustainable for the community.
 
 
 ![Thumbnail](https://gcode-visualizer.pages.dev/thumbnail.png)
@@ -40,11 +40,11 @@ Click the first point. The program will show it 3D position above the options. T
 **2. How to save the image of rendered geometries?**<br>
 The simple answer is taking a screenshot.
 
-**3. How to add/remove options**<br>
+**3. How to add/remove options?**<br>
 Check `gui_options.js` and [lil-gui](https://github.com/georgealways/lil-gui)
 
 **4. I would like to extend the software for my special G-code**<br>
-The program parses Gcode cpmmands into an intermedian JSON object (`gcode_to_json.js`) like:
+The program parses Gcode cpmmands into an intermediat JSON object (`gcode_to_json.js`) like:
 ```json
 [
   {
@@ -55,7 +55,7 @@ The program parses Gcode cpmmands into an intermedian JSON object (`gcode_to_jso
   }, ...
 ]
 ```
-Afterwards, `JSONGeometryParser` (in `json_geometry_parser.js`) convert this intermedian JSON into geometry object:
+Afterwards, `JSONGeometryParser` (in `json_geometry_parser.js`) convert this intermediat JSON into geometry object:
 ```json
 [
   {"type": "line", "start": [0,0,0], "end": [1,0,0], "feedrate": 200},
