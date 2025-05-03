@@ -34,17 +34,17 @@ An alternative G-code viewer that allows to visualize flat or tube structure. Ma
 
 ## Questions
 
-**1. How to measure pore size or distance between two points?**<br>
+**1. How to measure a pore size or a distance between two points?**<br>
 Click the first point. The program will show it 3D position above the options. Then, click the second one, do a calculation based on positions of two points.
 
-**2. How to save the image of rendered geometries?**<br>
+**2. How to save an image of the rendered geometries?**<br>
 The simple answer is taking a screenshot.
 
 **3. How to add/remove options?**<br>
 Check `gui_options.js` and [lil-gui](https://github.com/georgealways/lil-gui)
 
 **4. I would like to extend the software for my special G-code**<br>
-The program parses Gcode cpmmands into an intermediat JSON object (`gcode_to_json.js`) like:
+The program parses Gcode commands into an intermediate JSON object (`gcode_to_json.js`) like:
 ```json
 [
   {
@@ -55,7 +55,7 @@ The program parses Gcode cpmmands into an intermediat JSON object (`gcode_to_jso
   }, ...
 ]
 ```
-Afterwards, `JSONGeometryParser` (in `json_geometry_parser.js`) convert this intermediat JSON into geometry object:
+Afterwards, `JSONGeometryParser` (in `json_geometry_parser.js`) convert this intermediate JSON into geometry object:
 ```json
 [
   {"type": "line", "start": [0,0,0], "end": [1,0,0], "feedrate": 200},
