@@ -1,9 +1,13 @@
-# Online Gcode visualizer
+# Gcode viewer for Melt electrowriting Printer
 
 [Online GCODE viewer](https://gcode-visualizer.pages.dev/) hosted by Cloudflare Pages.
 
 
 An alternative G-code visualizer that allows to visualize Gcode for printing a tube. Many people use [Ncviewer](https://ncviewer.com/) for visualizing a G-code file, which is maintained by one developer. I, for one, cannot ensure that this great tool will last forever. So, I decided to create this program from scatch and keep the functionality as small as possible. Please feel free to fork and modify it. By this way, the project will be sustainable for the community.
+
+
+![Thumbnail](https://gcode-visualizer.pages.dev/thumbnail.png)
+
 
 ## Features
 

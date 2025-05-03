@@ -1,18 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<meta charset="utf-8">
-		<title>Gcode visualizing server</title>
+		<title>Gcode viewer for Melt electrowriting Printer // Open source Gcode visualizer for both flat and tube scaffolds</title>
+		<meta name="description" content="Online Gcode viewer for flat/tube structures, developed for melt electrowriting printer. It can customize axes and transform into cylindrical coordinate with curve smoothness.">
+		<meta name="keywords" content="Gcode, viewer, online, visualizer, melt electrowriting, printer, 3D printing, cylindrical coordinate, curve smoothness">
+		<meta name="author" content="Jirawat Iamsamang">
+		<meta name="application-name" content="Gcode viewer for Melt electrowriting Printer">
+		<meta name="theme-color" content="#ffffff">
+		<meta name="apple-mobile-web-app-title" content="Gcode viewer for Melt electrowriting Printer">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+		<meta property="og:title" content="Gcode viewer for Melt electrowriting Printer">
+		<meta property="og:description" content="Online Gcode viewer for flat/tube structures, developed for melt electrowriting printer. It can customize axes and transform into cylindrical coordinate with curve smoothness.">
+		<meta property="og:type" content="website">
+		<meta name="og:site_name" property="og:site_name" content="Gcode viewer for Melt electrowriting Printer">
+		<meta property="og:image" content="https://gcode-visualizer.pages.dev/thumbnail.png">
+		<meta property="og:image:secure_url" content="https://gcode-visualizer.pages.dev/thumbnail.png">
+		<meta property="og:url" content="https://gcode-visualizer.pages.dev/">
+		<meta property="og:update_time" content="2025-05-03T00:00:00+07:00">
+		<meta name="twitter:card" content="summary">
+		<meta name="twitter:creator" content="@jirawat_print">
+		<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+		<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+		<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+		<link rel="manifest" href="/site.webmanifest">
+		<link rel="canonical" href="https://gcode-visualizer.pages.dev/">
 		<script type="module" crossorigin src="/assets/index-B3ngYvXy.js"></script>
 		<link rel="stylesheet" crossorigin href="/assets/index-CALBcapr.css">
 	</head>
 	<body>
 		<div id="float_container"><div id="progress_bar"><div id="progress_bar__percent"></div></div></div>
 		<div id="panel" class="panel">
-			<div class="panel__header">ID: <input id="token" value="" readonly><button id="open_button" class="btn">📂</button></div>
+			<div class="panel__header">File <input id="token" value="" readonly><button id="open_button" class="btn">📂</button></div>
 			<div id="cursor_position" style="display:none;" class="panel__header">Cursor: <span id="cursor_position__text"></span></div>
 		</div>
-		<div id="three_container"></div>
+		<div id="three_container"></div>
+		<div id="info" class="info" style="position: absolute;top: 0;right: 0;padding: 4px;">
+			<a target="_blank" href="https://github.com/nodtem66/gcode_visualizer/"><img height="20" src="https://cdn.simpleicons.org/github?viewbox=auto" alt="github.com/nodtem66/gcode_visualizer" /></a>
+		</div>
 	</body>
 </html>
