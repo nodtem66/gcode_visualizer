@@ -10,7 +10,7 @@ class GuiOptions {
     'hide grid': false,
     'hide layers': true,
     'layer height': 0.1,
-    'point size': 3,
+    'point size': 5,
     'x axis': 'x',
     'y axis': 'y',
     'z axis': 'z',
@@ -29,7 +29,7 @@ class GuiOptions {
     gui.add(this.settings, 'hide grid').name('Hide Grid').onFinishChange(this.emit.bind(this, 'hide grid'));
     gui.add(this.settings, 'hide layers').name('Hide Layers').onFinishChange(this.emit.bind(this, 'hide layers'));
     gui.add(this.settings, 'layer height', 0.01, 10).name('Layer Height').onFinishChange(this.emit.bind(this, 'layer height'));
-    gui.add(this.settings, 'point size', 1, 100).name('Point Size').onFinishChange(this.emit.bind(this, 'point size'));
+    gui.add(this.settings, 'point size', 1, 20).name('Point Size').onFinishChange(this.emit.bind(this, 'point size'));
     
     const axisOptions = gui.addFolder('Axis Options');
     axisOptions.add(this.settings, 'x axis', AXIS_NAMES).name('X Axis').onFinishChange(this.emit.bind(this, 'x axis'));

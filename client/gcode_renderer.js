@@ -21,6 +21,9 @@ import {
 	Spherical,
 	Box3,
 	Sphere,
+  SphereGeometry,
+  MeshBasicMaterial,
+  Mesh,
 } from 'three';
 
 import { ViewportGizmo } from "three-viewport-gizmo";
@@ -49,6 +52,9 @@ const THREE = {
   Spherical : Spherical,
   Box3 : Box3,
   Sphere : Sphere,
+  SphereGeometry : SphereGeometry,
+  MeshBasicMaterial : MeshBasicMaterial,
+  Mesh : Mesh,
 };
 
 CameraControls.install( { THREE: THREE } );
@@ -64,6 +70,9 @@ class GcodeRenderer {
   initialCylindicalHeight = 1.5;  // Initial height offset for cylindical scaffold if endabled cylindical transform
   cylindicalMainAxis = 'x';      // Main axis for cylindical scaffold: 'x', 'y', or 'z'
   curveStep = 0.5;        // Step size used to sample curve segments when drawing cylindical scaffold
+  highlightedPointIndex = -1;    // Index of the currently highlighted point (-1 means no highlight)
+  currentPointSize = 5;           // Current point size from GUI
+  highlightedPointMesh = null;    // Mesh for the highlighted point
 
   constructor() {
     this.document = document;
@@ -175,19 +184,83 @@ class GcodeRenderer {
     const intersections = this.raycaster.intersectObjects([ this.pointGeometry ], false );
     const nearObj = ( intersections.length ) > 0 ? intersections[ 0 ] : null;
     if (nearObj !== null) {
-      const index = nearObj.index*3;
-      const point = this.pointGeometry.geometry.attributes.position.array.slice(index, index+3);
+      const index = nearObj.index;
+      const pointIndex = index * 3;
+      const point = this.pointGeometry.geometry.attributes.position.array.slice(pointIndex, pointIndex+3);
       this.cursorPositionText.innerText = `(${point[0].toFixed(3)}, ${point[1].toFixed(3)}, ${point[2].toFixed(3)})`;
       this.cursorPositionContainer.style.display = 'block';
-      //for (let i=0; i < intersections.length; i++) {
-        //if (Math.abs(intersections[i].distance - nearObj.distance) < 0.01) {
-        // other points are too close  
-        //}
-      //}
+      
+      // Update highlighted point
+      this.updateHighlightedPoint(index);
     }
   }
 
+  updateHighlightedPoint(pointIndex) {
+    if (!this.pointGeometry || !this.pointsData) return;
+    
+    const colors = this.pointGeometry.geometry.attributes.color.array;
+    
+    // Reset previous highlight
+    if (this.highlightedPointIndex !== -1) {
+      const prevIndex = this.highlightedPointIndex * 3;
+      colors[prevIndex] = 0;      // R
+      colors[prevIndex + 1] = 0;  // G
+      colors[prevIndex + 2] = 0;  // B
+    }
+    
+    // Highlight new point in red
+    const newIndex = pointIndex * 3;
+    colors[newIndex] = 1;      // R
+    colors[newIndex + 1] = 0;  // G
+    colors[newIndex + 2] = 0;  // B
+    
+    this.highlightedPointIndex = pointIndex;
+    this.pointGeometry.geometry.attributes.color.needsUpdate = true;
+    
+    // Update or create highlighted point sphere
+    this.updateHighlightedPointSphere(pointIndex);
+  }
+
+  updateHighlightedPointSphere(pointIndex) {
+    // Remove previous highlighted point mesh if it exists
+    if (this.highlightedPointMesh) {
+      this.scene.remove(this.highlightedPointMesh);
+      this.highlightedPointMesh.geometry.dispose();
+      this.highlightedPointMesh.material.dispose();
+      this.highlightedPointMesh = null;
+    }
+    
+    if (pointIndex === -1 || !this.pointGeometry) return;
+    
+    // Get position from the transformed geometry (which already has all transformations applied)
+    const pointIndex3 = pointIndex * 3;
+    const posArray = this.pointGeometry.geometry.attributes.position.array;
+    const position = new THREE.Vector3(
+      posArray[pointIndex3],
+      posArray[pointIndex3 + 1],
+      posArray[pointIndex3 + 2]
+    );
+    
+    // Apply the same rotation matrix as the pointGeometry to get world position
+    position.applyMatrix4(this.pointGeometry.matrixWorld);
+    
+    // Create sphere geometry for highlighted point
+    const geometry = new THREE.SphereGeometry(this.currentPointSize * 0.01, 8, 8);
+    const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    this.highlightedPointMesh = new THREE.Mesh(geometry, material);
+    this.highlightedPointMesh.position.copy(position);
+    
+    this.scene.add(this.highlightedPointMesh);
+  }
+
   reset() {
+    this.highlightedPointIndex = -1;
+    if (this.highlightedPointMesh) {
+      this.scene.remove(this.highlightedPointMesh);
+      this.highlightedPointMesh.geometry.dispose();
+      this.highlightedPointMesh.material.dispose();
+      this.highlightedPointMesh = null;
+    }
     this.initialize_scene();
   }
 
@@ -272,6 +345,8 @@ class GcodeRenderer {
 
   drawPoints(points) {
     const buffer = new THREE.BufferGeometry();
+    const pointCount = points.length;
+    
     // Normal flat scaffold
     if (!this.enableCylindicalTransform) {
       buffer.setAttribute( 'position', new THREE.Float32BufferAttribute( points.flat(), 3 ) );
@@ -291,8 +366,17 @@ class GcodeRenderer {
       });
       buffer.setAttribute( 'position', new THREE.Float32BufferAttribute( transformedPoints.flat(), 3 ) );
     }
-    //buffer.setAttribute( 'color', new THREE.Float32BufferAttribute( points.map(() => [0, 0, 0]).flat(), 3 ) );
-    const material = new THREE.PointsMaterial( { size: 3, sizeAttenuation:true, vertexColors: true } );
+    
+    // Create color attribute for all points (initially black)
+    const colors = new Float32Array(pointCount * 3);
+    for (let i = 0; i < pointCount; i++) {
+      colors[i * 3] = 0;      // R
+      colors[i * 3 + 1] = 0;  // G
+      colors[i * 3 + 2] = 0;  // B
+    }
+    buffer.setAttribute( 'color', new THREE.Float32BufferAttribute( colors, 3 ) );
+    
+    const material = new THREE.PointsMaterial( { size: this.currentPointSize, sizeAttenuation:true, vertexColors: true } );
     this.pointGeometry = new THREE.Points( buffer , material );
     
     if (this.enableCylindicalTransform) {
@@ -304,6 +388,12 @@ class GcodeRenderer {
     this.pointGeometry.geometry.computeBoundingBox();
     this.fitCameraToGeometry(this.pointGeometry.geometry);
     this.scene.add(this.pointGeometry);
+    
+    // Update matrix world to ensure transformations are applied
+    this.pointGeometry.updateMatrixWorld(true);
+    
+    // Store the points data for later use in highlighting
+    this.pointsData = points;
   }
 
   fitCameraToGeometry(pathGeometry) {

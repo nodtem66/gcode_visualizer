@@ -20,7 +20,7 @@ const parser = new JsonGeometryParser();
 const gui = new GuiOptions();
 let open_file = null;
 
-const processFile = (file) => {
+const processFile = async (file) => {
   gcode_renderer.reset();
   parser.reset();
   document.getElementById('token').value = file ? file.name : '';
@@ -31,21 +31,27 @@ const processFile = (file) => {
   const gcode_stream = new GCodeLineStream(gcodeToJson);
   const reader = file.stream().pipeThrough(gcode_stream).getReader();
   gui.disable();
-  reader.read().then(function processText({value, done}) {
-    if (done) {
-      progress_bar.reset();
-      gcode_renderer.drawPoints(parser.cursorPosition);
-      gui.enable();
-      return;
+  
+  try {
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) {
+        progress_bar.reset();
+        gcode_renderer.drawPoints(parser.cursorPosition);
+        gui.enable();
+        break;
+      }
+      const {readBytes, results} = value;
+      progress_bar.update(readBytes/file.size*100);
+      if (results.length > 0) {
+        parser.process(value.results);
+        gcode_renderer.draw(parser.geometry);
+      }
     }
-    const {readBytes, results} = value;
-    progress_bar.update(readBytes/file.size*100);
-    if (results.length > 0) {
-      parser.process(value.results);
-      gcode_renderer.draw(parser.geometry);
-    }
-    reader.read().then(processText);
-  });
+  } catch (error) {
+    console.error('Error reading file:', error);
+    gui.enable();
+  }
 }; 
 
 document.getElementById('open_button').addEventListener('click', () => {
@@ -59,9 +65,14 @@ gui.on('hide points', (value) => {
   }
 });
 gui.on('point size', (value) => {
+  gcode_renderer.currentPointSize = value;
   if (gcode_renderer.pointGeometry) {
     gcode_renderer.pointGeometry.material.size = value;
     gcode_renderer.pointGeometry.material.needsUpdate = true;
+  }
+  // Update highlighted point sphere size if it exists
+  if (gcode_renderer.highlightedPointIndex !== -1) {
+    gcode_renderer.updateHighlightedPointSphere(gcode_renderer.highlightedPointIndex);
   }
 });
 gui.on('layer height', (value) => {parser.layerHeight = value;processFile(open_file);});
