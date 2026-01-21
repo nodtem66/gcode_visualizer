@@ -59,11 +59,11 @@ class GcodeRenderer {
   cursorPositionContainer = document.getElementById('cursor_position');
   cursorPositionText = document.getElementById('cursor_position__text');
 
-  enableCylindicalTransform = false;
-  diameter = 3;
-  initialCylindicalHeight = 1.5;
-  cylindicalMainAxis = 'x';
-  curveResolution = 20;
+  enableCylindicalTransform = false;   // Whether to enable cylindical transformation
+  diameter = 3;                   // Diameter of the cylindical scaffold, if enabled cylindical transform
+  initialCylindicalHeight = 1.5;  // Initial height offset for cylindical scaffold if endabled cylindical transform
+  cylindicalMainAxis = 'x';      // Main axis for cylindical scaffold: 'x', 'y', or 'z'
+  curveStep = 0.5;        // Step size used to sample curve segments when drawing cylindical scaffold
 
   constructor() {
     this.document = document;
@@ -244,13 +244,11 @@ class GcodeRenderer {
     } 
     // Cylindical scaffold
     else {
-      const points = path.curves.flatMap(c => {
-        const l = c.getLength();
-        if (l < 0.1) return c.getPoints(2);
-        else if (l < 0.3) return c.getSpacedPoints(3);
-        else if (l < 0.5) return c.getSpacedPoints(4);
-        else if (l < 1) return c.getSpacedPoints(5);
-        return c.getSpacedPoints(this.curveResolution);
+      const step = Math.max(this.curveStep, 1e-6); // avoid zero or negative step
+      const points = path.curves.flatMap((curve) => {
+        const length = curve.getLength();
+        const divisions = Math.max(2, Math.ceil(length / step));
+        return curve.getSpacedPoints(divisions);
       });
       const transformedPoints = points.map((p) => {
         let val;
