@@ -1,10 +1,11 @@
 //import { io } from "socket.io-client";
 import { GcodeRenderer } from "./gcode_renderer.js";
-import { ProgressBar} from './progress_bar.js';
+import { ProgressBar } from './progress_bar.js';
 import { fileOpen } from "browser-fs-access";
 import { GCodeLineStream } from "./gcode_stream.js";
 import { gcodeToJson } from "./gcode_to_json.js";
 import { JsonGeometryParser } from "./json_geometry_parser.js";
+import { GuiOptionParser } from "./gui_option_parser.js";
 import { GuiOptions } from "./gui_options.js";
 
 //const code_viewer = new CodeViewer(document, window);
@@ -18,32 +19,37 @@ const progress_bar = new ProgressBar();
 const parser = new JsonGeometryParser();
 
 const gui = new GuiOptions();
+const gui_option_parser = new GuiOptionParser(gui);
 let open_file = null;
 
-const processFile = async (file) => {
+const processFile = async (file, isInitialLoad = true) => {
   gcode_renderer.reset();
   parser.reset();
   document.getElementById('token').value = file ? file.name : '';
-  
+
   if (!file) return;
   open_file = file;
-  
+
   const gcode_stream = new GCodeLineStream(gcodeToJson);
   const reader = file.stream().pipeThrough(gcode_stream).getReader();
   gui.disable();
-  
+
   try {
     while (true) {
-      const {value, done} = await reader.read();
+      const { value, done } = await reader.read();
       if (done) {
         progress_bar.reset();
         gcode_renderer.drawPoints(parser.cursorPosition);
+        gui.update();
         gui.enable();
         break;
       }
-      const {readBytes, results} = value;
-      progress_bar.update(readBytes/file.size*100);
+      const { readBytes, results } = value;
+      progress_bar.update(readBytes / file.size * 100);
       if (results.length > 0) {
+        if (isInitialLoad) {
+          gui_option_parser.process(value.results);
+        }
         parser.process(value.results);
         gcode_renderer.draw(parser.geometry);
       }
@@ -52,10 +58,10 @@ const processFile = async (file) => {
     console.error('Error reading file:', error);
     gui.enable();
   }
-}; 
+};
 
 document.getElementById('open_button').addEventListener('click', () => {
-  const blob = fileOpen({extensions: ['.gcode', '.txt', '.g'], multiple: false});
+  const blob = fileOpen({ extensions: ['.gcode', '.txt', '.g'], multiple: false });
   blob.then(processFile);
 });
 
@@ -75,14 +81,23 @@ gui.on('point size', (value) => {
     gcode_renderer.updateHighlightedPointSphere(gcode_renderer.highlightedPointIndex);
   }
 });
-gui.on('layer height', (value) => {parser.layerHeight = value;processFile(open_file);});
-gui.on('hide grid', (value) => {gcode_renderer.helper.visible = !value;});
-gui.on('hide layers', (value) => {parser.enableLayerView = !value;processFile(open_file);});
-gui.on('x axis', (value) => {parser.x_axis = value;processFile(open_file);});
-gui.on('y axis', (value) => {parser.y_axis = value;processFile(open_file);});
-gui.on('z axis', (value) => {parser.z_axis = value;processFile(open_file);});
-gui.on('cylindical diameter', (value) => {gcode_renderer.diameter = value; processFile(open_file);});
-gui.on('cylindical main axis', (value) => {gcode_renderer.cylindicalMainAxis = value; processFile(open_file);});
-gui.on('enable cylindical', (value) => {gcode_renderer.enableCylindicalTransform = value; processFile(open_file);});
-gui.on('curve step', (value) => {gcode_renderer.curveStep = value; processFile(open_file);});
-gui.on('cylindical height', (value) => {gcode_renderer.initialCylindicalHeight = value; processFile(open_file);});
+
+// Helper to create handlers that set a value and reprocess the file
+const setAndReprocess = (setter) => (value, toggle_reprocess = true) => {
+  setter(value);
+  if (toggle_reprocess) {
+    processFile(open_file, false);
+  }
+};
+
+gui.on('layer height', setAndReprocess((value) => parser.layerHeight = value));
+gui.on('hide grid', (value) => { gcode_renderer.gridVisible = !value; gcode_renderer.helper.visible = !value;});
+gui.on('hide layers', setAndReprocess((value) => parser.enableLayerView = !value));
+gui.on('x axis', setAndReprocess((value) => parser.x_axis = value));
+gui.on('y axis', setAndReprocess((value) => parser.y_axis = value));
+gui.on('z axis', setAndReprocess((value) => parser.z_axis = value));
+gui.on('cylindrical diameter', setAndReprocess((value) => gcode_renderer.diameter = value));
+gui.on('cylindrical main axis', setAndReprocess((value) => gcode_renderer.cylindricalMainAxis = value));
+gui.on('enable cylindrical', setAndReprocess((value) => gcode_renderer.enableCylindricalTransform = value));
+gui.on('curve step', setAndReprocess((value) => gcode_renderer.curveStep = value));
+gui.on('cylindrical height', setAndReprocess((value) => gcode_renderer.initialCylindricalHeight = value));

@@ -32,6 +32,24 @@ An alternative G-code viewer that allows to visualize flat or tube structure. Ma
   4. (Optional) Set an initial height. Tube with original diameter can be visualized with different radius.
   5. Set curve resolution. Increase this number to enhance curve smoothness. It will increase time to render.
 
+**Visualization settings**
+
+The settings can be set through Gcode commands:
+```
+; hide_points: false
+; hide_grid: true
+; hide_layers: true
+; layer_height: 0.1
+; point_size: 2
+; x_axis: x
+; y_axis: u
+; z_axis: z
+; enable_cylindrical: true
+; cylindrical_main_axis: x
+; cylindrical_diameter: 3
+; cylindrical_height: 1.5
+; curve_step: 0.5
+```
 ## Questions
 
 **1. How to measure a pore size or a distance between two points?**<br>

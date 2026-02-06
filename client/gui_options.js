@@ -14,10 +14,10 @@ class GuiOptions {
     'x axis': 'x',
     'y axis': 'y',
     'z axis': 'z',
-    'cylindical diameter': 3,
-    'cylindical height': 1.5,
-    'enable cylindical': false,
-    'cylindical main axis': 'x',
+    'cylindrical diameter': 3,
+    'cylindrical height': 1.5,
+    'enable cylindrical': false,
+    'cylindrical main axis': 'x',
     'curve step': 0.5,
   }
 
@@ -36,12 +36,12 @@ class GuiOptions {
     axisOptions.add(this.settings, 'y axis', AXIS_NAMES).name('Y Axis').onFinishChange(this.emit.bind(this, 'y axis'));
     axisOptions.add(this.settings, 'z axis', AXIS_NAMES).name('Z Axis').onFinishChange(this.emit.bind(this, 'z axis'));
 
-    const cylindicalOptions = gui.addFolder('Cylindical Transform');
-    cylindicalOptions.add(this.settings, 'enable cylindical').name('Enable').onFinishChange(this.emit.bind(this, 'enable cylindical'));
-    cylindicalOptions.add(this.settings, 'cylindical main axis', MAIN_AXIS_NAMES).name('Main Axis').onFinishChange(this.emit.bind(this, 'cylindical main axis'));
-    cylindicalOptions.add(this.settings, 'cylindical diameter', 1, 100).name('Diameter').onFinishChange(this.emit.bind(this, 'cylindical diameter'));
-    cylindicalOptions.add(this.settings, 'cylindical height', 0, 100).name('Initial Height').onFinishChange(this.emit.bind(this, 'cylindical height'));
-    cylindicalOptions.add(this.settings, 'curve step', 0.0001, 10, 0.01).name('Curve Step').onFinishChange(this.emit.bind(this, 'curve step'));
+    const cylindricalOptions = gui.addFolder('Cylindrical Transform');
+    cylindricalOptions.add(this.settings, 'enable cylindrical').name('Enable').onFinishChange(this.emit.bind(this, 'enable cylindrical'));
+    cylindricalOptions.add(this.settings, 'cylindrical main axis', MAIN_AXIS_NAMES).name('Main Axis').onFinishChange(this.emit.bind(this, 'cylindrical main axis'));
+    cylindricalOptions.add(this.settings, 'cylindrical diameter', 1, 100).name('Diameter').onFinishChange(this.emit.bind(this, 'cylindrical diameter'));
+    cylindricalOptions.add(this.settings, 'cylindrical height', 0, 100).name('Initial Height').onFinishChange(this.emit.bind(this, 'cylindrical height'));
+    cylindricalOptions.add(this.settings, 'curve step', 0.0001, 10, 0.01).name('Curve Step').onFinishChange(this.emit.bind(this, 'curve step'));
     this.gui = gui;
   }
 
@@ -53,9 +53,10 @@ class GuiOptions {
     delete this.fn[event];
   }
 
-  emit(event, value) {
+  emit(event) {
     if (this.fn[event]) {
-      this.fn[event](value);
+      this.settings[event] = arguments[1]; // Update the setting value
+      this.fn[event](...Array.from(arguments).slice(1));
     }
   }
 
@@ -70,6 +71,13 @@ class GuiOptions {
     if (!this.gui) return;
     this.gui.controllers.forEach((controller) => {
       controller.enable();
+    });
+  }
+
+  update() {
+    if (!this.gui) return;
+    this.gui.controllersRecursive().forEach((controller) => {
+      controller.updateDisplay();
     });
   }
 }

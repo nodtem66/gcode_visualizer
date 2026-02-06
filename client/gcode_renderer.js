@@ -65,14 +65,15 @@ class GcodeRenderer {
   cursorPositionContainer = document.getElementById('cursor_position');
   cursorPositionText = document.getElementById('cursor_position__text');
 
-  enableCylindicalTransform = false;   // Whether to enable cylindical transformation
-  diameter = 3;                   // Diameter of the cylindical scaffold, if enabled cylindical transform
-  initialCylindicalHeight = 1.5;  // Initial height offset for cylindical scaffold if endabled cylindical transform
-  cylindicalMainAxis = 'x';      // Main axis for cylindical scaffold: 'x', 'y', or 'z'
-  curveStep = 0.5;        // Step size used to sample curve segments when drawing cylindical scaffold
+  enableCylindricalTransform = false;   // Whether to enable cylindrical transformation
+  diameter = 3;                   // Diameter of the cylindrical scaffold, if enabled cylindrical transform
+  initialCylindricalHeight = 1.5;  // Initial height offset for cylindrical scaffold if enabled cylindrical transform
+  cylindricalMainAxis = 'x';      // Main axis for cylindrical scaffold: 'x', 'y', or 'z'
+  curveStep = 0.5;        // Step size used to sample curve segments when drawing cylindrical scaffold
   highlightedPointIndex = -1;    // Index of the currently highlighted point (-1 means no highlight)
   currentPointSize = 5;           // Current point size from GUI
   highlightedPointMesh = null;    // Mesh for the highlighted point
+  gridVisible = true;             // Whether the grid is currently visible
 
   constructor() {
     this.document = document;
@@ -88,7 +89,6 @@ class GcodeRenderer {
     this.initialize_scene();
     window.addEventListener('resize', this.onWindowResize.bind(this));
     window.addEventListener( 'click', this.onPointerClick.bind(this) );
-    console.log('Init GcodeRenderer');
   }
 
   initialize_scene() {
@@ -132,6 +132,7 @@ class GcodeRenderer {
     //helper.position.y = - 199;
     helper.material.opacity = 0.1;
     helper.material.transparent = false;
+    helper.visible = this.gridVisible;
     this.helper = helper;
     this.scene.add(helper);
     //viewportGizmo.update();
@@ -266,10 +267,7 @@ class GcodeRenderer {
 
   draw(geometry) {
     if (geometry.length <= 1) return;
-    // if (this.enableCylindicalTransform) {
-    //   this.drawPath(geometry);
-    //   return;
-    // }
+
     const groupedByStartZ = geometry.reduce((acc, g) => {
       const key = g.start[2];
       if (!acc[key]) {
@@ -305,7 +303,7 @@ class GcodeRenderer {
     });
     if (path.curves.length <= 1) return;
     // Normal flat scaffold
-    if (!this.enableCylindicalTransform) {
+    if (!this.enableCylindricalTransform) {
       const points = path.getPoints();
       const pathGeometry = new THREE.BufferGeometry().setFromPoints(points);
       const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
@@ -315,7 +313,7 @@ class GcodeRenderer {
       const line = new THREE.Line( pathGeometry, lineMaterial );
       this.scene.add( line );
     } 
-    // Cylindical scaffold
+    // Cylindrical scaffold
     else {
       const step = Math.max(this.curveStep, 1e-6); // avoid zero or negative step
       const points = path.curves.flatMap((curve) => {
@@ -325,11 +323,11 @@ class GcodeRenderer {
       });
       const transformedPoints = points.map((p) => {
         let val;
-        if (this.cylindicalMainAxis === 'x') val = {x: p.x, y: p.y, z};
-        else if (this.cylindicalMainAxis === 'y') val = {x: p.y, y: p.x, z};
-        else if (this.cylindicalMainAxis === 'z') val = {x: z, y: p.y, z: p.x};
+        if (this.cylindricalMainAxis === 'x') val = {x: p.x, y: p.y, z};
+        else if (this.cylindricalMainAxis === 'y') val = {x: p.y, y: p.x, z};
+        else if (this.cylindricalMainAxis === 'z') val = {x: z, y: p.y, z: p.x};
         const radius = this.diameter / 2;
-        const height = this.initialCylindicalHeight + val.z;
+        const height = this.initialCylindricalHeight + val.z;
         const theta = radius > 0 ? val.y/radius : val.y/0.001;
         const y = val.x;
         return new THREE.Vector3().setFromCylindricalCoords(height, theta, y)
@@ -337,8 +335,8 @@ class GcodeRenderer {
       const pathGeometry = new THREE.BufferGeometry().setFromPoints(transformedPoints);
       const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
       const line = new THREE.Line( pathGeometry, lineMaterial );
-      if (this.cylindicalMainAxis === 'x') line.rotateZ(-Math.PI/2);
-      else if (this.cylindicalMainAxis === 'z') line.rotateX(Math.PI/2);
+      if (this.cylindricalMainAxis === 'x') line.rotateZ(-Math.PI/2);
+      else if (this.cylindricalMainAxis === 'z') line.rotateX(Math.PI/2);
       this.scene.add( line );
     }
   }
@@ -348,18 +346,18 @@ class GcodeRenderer {
     const pointCount = points.length;
     
     // Normal flat scaffold
-    if (!this.enableCylindicalTransform) {
+    if (!this.enableCylindricalTransform) {
       buffer.setAttribute( 'position', new THREE.Float32BufferAttribute( points.flat(), 3 ) );
     }
-    // Cylindical scaffold
+    // Cylindrical scaffold
     else {
       const transformedPoints = points.map((p) => {
         let val;
-        if (this.cylindicalMainAxis === 'x') val = {x: p[0], y: p[1], z: p[2]};
-        else if (this.cylindicalMainAxis === 'y') val = {x: p[1], y: [0], z: p[2]};
-        else if (this.cylindicalMainAxis === 'z') val = {x: p[2], y: p[1], z: p[0]};
+        if (this.cylindricalMainAxis === 'x') val = {x: p[0], y: p[1], z: p[2]};
+        else if (this.cylindricalMainAxis === 'y') val = {x: p[1], y: [0], z: p[2]};
+        else if (this.cylindricalMainAxis === 'z') val = {x: p[2], y: p[1], z: p[0]};
         const radius = this.diameter/2.0;
-        const height = this.initialCylindicalHeight + val.z;
+        const height = this.initialCylindricalHeight + val.z;
         const theta = val.y/(radius);
         const l = val.x;
         return [height * Math.sin(theta), l, height * Math.cos(theta)];
@@ -379,9 +377,9 @@ class GcodeRenderer {
     const material = new THREE.PointsMaterial( { size: this.currentPointSize, sizeAttenuation:true, vertexColors: true } );
     this.pointGeometry = new THREE.Points( buffer , material );
     
-    if (this.enableCylindicalTransform) {
-      if (this.cylindicalMainAxis === 'x') this.pointGeometry.rotateZ(-Math.PI/2);
-      else if (this.cylindicalMainAxis === 'z') this.pointGeometry.rotateX(Math.PI/2);
+    if (this.enableCylindricalTransform) {
+      if (this.cylindricalMainAxis === 'x') this.pointGeometry.rotateZ(-Math.PI/2);
+      else if (this.cylindricalMainAxis === 'z') this.pointGeometry.rotateX(Math.PI/2);
     }
     
     this.pointGeometry.geometry.computeBoundingSphere();
