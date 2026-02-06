@@ -4,22 +4,25 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 const AXIS_NAMES = ['x', 'y', 'z', 'u', 'v', 'w', 'a', 'b', 'c', 'i', 'j', 'k'];
 const MAIN_AXIS_NAMES = ['x', 'y', 'z'];
 
+const DEFAULT_SETTINGS = {
+  'hide points': false,
+  'hide grid': false,
+  'hide layers': true,
+  'layer height': 0.1,
+  'point size': 5,
+  'x axis': 'x',
+  'y axis': 'y',
+  'z axis': 'z',
+  'cylindrical diameter': 3,
+  'cylindrical height': 1.5,
+  'enable cylindrical': false,
+  'cylindrical main axis': 'x',
+  'curve step': 0.5,
+};
+
 class GuiOptions {
-  settings = {
-    'hide points': false,
-    'hide grid': false,
-    'hide layers': true,
-    'layer height': 0.1,
-    'point size': 5,
-    'x axis': 'x',
-    'y axis': 'y',
-    'z axis': 'z',
-    'cylindrical diameter': 3,
-    'cylindrical height': 1.5,
-    'enable cylindrical': false,
-    'cylindrical main axis': 'x',
-    'curve step': 0.5,
-  }
+
+  settings = Object.assign({}, DEFAULT_SETTINGS);
 
   fn = {};
   
@@ -79,6 +82,14 @@ class GuiOptions {
     this.gui.controllersRecursive().forEach((controller) => {
       controller.updateDisplay();
     });
+  }
+
+  reset() {
+    if (!this.gui) return;
+    for (const key in DEFAULT_SETTINGS) {
+      this.settings[key] = DEFAULT_SETTINGS[key];
+    }
+    this.update();
   }
 }
 

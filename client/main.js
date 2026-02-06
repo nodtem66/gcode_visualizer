@@ -7,20 +7,20 @@ import { gcodeToJson } from "./gcode_to_json.js";
 import { JsonGeometryParser } from "./json_geometry_parser.js";
 import { GuiOptionParser } from "./gui_option_parser.js";
 import { GuiOptions } from "./gui_options.js";
+import g from "three/examples/jsm/libs/lil-gui.module.min.js";
 
 //const code_viewer = new CodeViewer(document, window);
 //code_viewer.displayLineNumbers();
 
-const gcode_renderer = new GcodeRenderer();
-//gcode_renderer.test_geometry();
+let gcode_renderer = new GcodeRenderer();
 gcode_renderer.animate(true);
 
-const progress_bar = new ProgressBar();
-const parser = new JsonGeometryParser();
+let progress_bar = new ProgressBar();
+let parser = new JsonGeometryParser();
+let open_file = null;
 
 const gui = new GuiOptions();
 const gui_option_parser = new GuiOptionParser(gui);
-let open_file = null;
 
 const processFile = async (file, isInitialLoad = true) => {
   gcode_renderer.reset();
@@ -55,14 +55,27 @@ const processFile = async (file, isInitialLoad = true) => {
       }
     }
   } catch (error) {
-    console.error('Error reading file:', error);
+    document.getElementById('dialog_message').textContent = `Error processing file: ${error.message}`;
+    dialog.showModal();
     gui.enable();
   }
 };
 
+// DOM Events
 document.getElementById('open_button').addEventListener('click', () => {
+  reset();
   const blob = fileOpen({ extensions: ['.gcode', '.txt', '.g'], multiple: false });
-  blob.then(processFile);
+  blob.then(processFile, (error) => {
+    if (error.name !== 'AbortError') {
+      document.getElementById('dialog_message').textContent = `Error opening file: ${error.message}`;
+      dialog.showModal();
+    }
+  });
+});
+const dialog = document.querySelector("dialog");
+const dialogCloseButton = document.querySelector("dialog button");
+dialogCloseButton.addEventListener("click", () => {
+  dialog.close();
 });
 
 gui.on('hide points', (value) => {
@@ -101,3 +114,18 @@ gui.on('cylindrical main axis', setAndReprocess((value) => gcode_renderer.cylind
 gui.on('enable cylindrical', setAndReprocess((value) => gcode_renderer.enableCylindricalTransform = value));
 gui.on('curve step', setAndReprocess((value) => gcode_renderer.curveStep = value));
 gui.on('cylindrical height', setAndReprocess((value) => gcode_renderer.initialCylindricalHeight = value));
+
+// Reset function to reset GUI options and reprocess the file with default settings
+function reset() {
+  gui.reset();
+  parser.x_axis = gui.settings['x axis'];
+  parser.y_axis = gui.settings['y axis'];
+  parser.z_axis = gui.settings['z axis'];
+  parser.enableLayerView = !gui.settings['hide layers'];
+  parser.layerHeight = gui.settings['layer height'];
+  gcode_renderer.enableCylindricalTransform = gui.settings['enable cylindrical'];
+  gcode_renderer.diameter = gui.settings['cylindrical diameter'];
+  gcode_renderer.initialCylindricalHeight = gui.settings['cylindrical height'];
+  gcode_renderer.cylindricalMainAxis = gui.settings['cylindrical main axis'];
+  gcode_renderer.curveStep = gui.settings['curve step'];  
+}
