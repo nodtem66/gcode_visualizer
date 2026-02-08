@@ -26,10 +26,10 @@ import {
   Mesh,
   Curve,
   LineCurve3,
-} from 'three';
+} from "three";
 
 import { ViewportGizmo } from "three-viewport-gizmo";
-import CameraControls from 'camera-controls';
+import CameraControls from "camera-controls";
 
 const THREE = {
   Vector2: Vector2,
@@ -66,22 +66,22 @@ CameraControls.install({ THREE: THREE });
 class GcodeRenderer {
   raycaster = new THREE.Raycaster();
   pointer = new THREE.Vector2();
-  cursorPositionContainer = document.getElementById('cursor_position');
-  cursorPositionText = document.getElementById('cursor_position__text');
+  cursorPositionContainer = document.getElementById("cursor_position");
+  cursorPositionText = document.getElementById("cursor_position__text");
 
-  enableCylindricalTransform = false;   // Whether to enable cylindrical transformation
-  diameter = 3;                         // Diameter of the cylindrical scaffold, if enabled cylindrical transform
-  initialCylindricalHeight = 1.5;       // Initial height offset for cylindrical scaffold if enabled cylindrical transform
-  cylindricalMainAxis = 'x';            // Main axis for cylindrical scaffold: 'x', 'y', or 'z'
-  highlightedPointIndex = -1;           // Index of the currently highlighted point (-1 means no highlight)
-  currentPointSize = 5;                 // Current point size from GUI
-  currentPointColor = '#000000';        // Current point color from GUI
-  currentLineColor = '#0000ff';         // Current line color from GUI
-  currentLineSize = 1;                  // Current line size from GUI
-  currentBackgroundColor = '#ffffff';   // Current background color from GUI
-  highlightedPointMesh = null;          // Mesh for the highlighted point
-  gridVisible = true;                   // Whether the grid is currently visible
-  lineSegments = [];                    // Track line segments for style updates
+  enableCylindricalTransform = false; // Whether to enable cylindrical transformation
+  diameter = 3; // Diameter of the cylindrical scaffold, if enabled cylindrical transform
+  initialCylindricalHeight = 1.5; // Initial height offset for cylindrical scaffold if enabled cylindrical transform
+  cylindricalMainAxis = "x"; // Main axis for cylindrical scaffold: 'x', 'y', or 'z'
+  highlightedPointIndex = -1; // Index of the currently highlighted point (-1 means no highlight)
+  currentPointSize = 5; // Current point size from GUI
+  currentPointColor = "#000000"; // Current point color from GUI
+  currentLineColor = "#0000ff"; // Current line color from GUI
+  currentLineSize = 1; // Current line size from GUI
+  currentBackgroundColor = "#ffffff"; // Current background color from GUI
+  highlightedPointMesh = null; // Mesh for the highlighted point visual indicator
+  gridVisible = true; // Whether the grid is currently visible
+  lineSegments = []; // Track line segments for style updates
 
   constructor() {
     this.document = document;
@@ -96,8 +96,9 @@ class GcodeRenderer {
     document.body.appendChild(this.renderer.domElement);
     this.raycaster.params.Points.threshold = 0.1;
     this.initialize_scene();
-    window.addEventListener('resize', this.onWindowResize.bind(this));
-    window.addEventListener('click', this.onPointerClick.bind(this));
+    window.addEventListener("resize", this.onWindowResize.bind(this));
+    window.addEventListener("click", this.onPointerClick.bind(this));
+    window.addEventListener("keydown", this.onKeyDown.bind(this));
   }
 
   initialize_scene() {
@@ -108,7 +109,14 @@ class GcodeRenderer {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(this.currentBackgroundColor);
     //const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.001, 10000);
-    const camera = new THREE.OrthographicCamera(frustumSize * aspect / - 2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / - 2, 1, 1000);
+    const camera = new THREE.OrthographicCamera(
+      (frustumSize * aspect) / -2,
+      (frustumSize * aspect) / 2,
+      frustumSize / 2,
+      frustumSize / -2,
+      1,
+      1000,
+    );
     camera.position.set(0, 0, 100);
     camera.lookAt(0, 1, 0);
     camera.updateProjectionMatrix();
@@ -127,7 +135,9 @@ class GcodeRenderer {
     // listeners
     viewportGizmo.addEventListener("start", () => (controls.enabled = false));
     viewportGizmo.addEventListener("end", () => (controls.enabled = true));
-    viewportGizmo.addEventListener("change", () => { controls.setPosition(...camera.position.toArray()); });
+    viewportGizmo.addEventListener("change", () => {
+      controls.setPosition(...camera.position.toArray());
+    });
     controls.addEventListener("update", () => {
       // Update the the gizmo on controls update
       controls.getTarget(viewportGizmo.target);
@@ -151,10 +161,10 @@ class GcodeRenderer {
 
   adjustCamera(frustumSize) {
     const aspect = window.innerWidth / window.innerHeight;
-    this.camera.left = frustumSize * aspect / - 2;
-    this.camera.right = frustumSize * aspect / 2;
+    this.camera.left = (frustumSize * aspect) / -2;
+    this.camera.right = (frustumSize * aspect) / 2;
     this.camera.top = frustumSize / 2;
-    this.camera.bottom = frustumSize / - 2;
+    this.camera.bottom = frustumSize / -2;
     this.camera.updateProjectionMatrix();
   }
 
@@ -169,14 +179,47 @@ class GcodeRenderer {
   }
 
   onPointerClick(event) {
-
     // calculate pointer position in normalized device coordinates
     // (-1 to +1) for both components
     this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-    this.pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+    this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
     this.queryPoint();
   }
 
+  onKeyDown(event) {
+    // Clear highlighted point when ESC is pressed
+    if (event.key === "Escape") {
+      this.clearHighlightedPoint();
+    }
+  }
+
+  clearHighlightedPoint() {
+    if (this.highlightedPointIndex === -1 || !this.pointGeometry) return;
+
+    const colors = this.pointGeometry.geometry.attributes.color.array;
+
+    // Reset the previously highlighted point to base color
+    const prevIndex = this.highlightedPointIndex * 3;
+    colors[prevIndex] = this.pointBaseColor.r;
+    colors[prevIndex + 1] = this.pointBaseColor.g;
+    colors[prevIndex + 2] = this.pointBaseColor.b;
+
+    this.pointGeometry.geometry.attributes.color.needsUpdate = true;
+
+    // Clear the highlighted point index
+    this.highlightedPointIndex = -1;
+
+    // Remove the highlighted point mesh
+    if (this.highlightedPointMesh) {
+      this.scene.remove(this.highlightedPointMesh);
+      this.highlightedPointMesh.geometry.dispose();
+      this.highlightedPointMesh.material.dispose();
+      this.highlightedPointMesh = null;
+    }
+
+    // Clear the cursor position display
+    this.cursorPositionContainer.style.display = "none";
+  }
 
   animate(force = false) {
     const updated = this.controls.update(this.clock.getDelta());
@@ -191,14 +234,20 @@ class GcodeRenderer {
     this.raycaster.setFromCamera(this.pointer, this.camera);
     // calculate objects intersecting the picking ray
     if (!this.pointGeometry) return;
-    const intersections = this.raycaster.intersectObjects([this.pointGeometry], false);
-    const nearObj = (intersections.length) > 0 ? intersections[0] : null;
+    const intersections = this.raycaster.intersectObjects(
+      [this.pointGeometry],
+      false,
+    );
+    const nearObj = intersections.length > 0 ? intersections[0] : null;
     if (nearObj !== null) {
       const index = nearObj.index;
       const pointIndex = index * 3;
-      const point = this.pointGeometry.geometry.attributes.position.array.slice(pointIndex, pointIndex + 3);
+      const point = this.pointGeometry.geometry.attributes.position.array.slice(
+        pointIndex,
+        pointIndex + 3,
+      );
       this.cursorPositionText.innerText = `(${point[0].toFixed(3)}, ${point[1].toFixed(3)}, ${point[2].toFixed(3)})`;
-      this.cursorPositionContainer.style.display = 'block';
+      this.cursorPositionContainer.style.display = "block";
 
       // Update highlighted point
       this.updateHighlightedPoint(index);
@@ -213,16 +262,16 @@ class GcodeRenderer {
     // Reset previous highlight
     if (this.highlightedPointIndex !== -1) {
       const prevIndex = this.highlightedPointIndex * 3;
-      colors[prevIndex] = this.pointBaseColor.r;      // R
-      colors[prevIndex + 1] = this.pointBaseColor.g;  // G
-      colors[prevIndex + 2] = this.pointBaseColor.b;  // B
+      colors[prevIndex] = this.pointBaseColor.r; // R
+      colors[prevIndex + 1] = this.pointBaseColor.g; // G
+      colors[prevIndex + 2] = this.pointBaseColor.b; // B
     }
 
     // Highlight new point in red
     const newIndex = pointIndex * 3;
-    colors[newIndex] = 1;      // R
-    colors[newIndex + 1] = 0;  // G
-    colors[newIndex + 2] = 0;  // B
+    colors[newIndex] = 1; // R
+    colors[newIndex + 1] = 0; // G
+    colors[newIndex + 2] = 0; // B
 
     this.highlightedPointIndex = pointIndex;
     this.pointGeometry.geometry.attributes.color.needsUpdate = true;
@@ -242,24 +291,33 @@ class GcodeRenderer {
 
     if (pointIndex === -1 || !this.pointGeometry) return;
 
-    // Get position from the transformed geometry (which already has all transformations applied)
+    // Get position from the point geometry buffer
     const pointIndex3 = pointIndex * 3;
     const posArray = this.pointGeometry.geometry.attributes.position.array;
     const position = new THREE.Vector3(
       posArray[pointIndex3],
       posArray[pointIndex3 + 1],
-      posArray[pointIndex3 + 2]
+      posArray[pointIndex3 + 2],
     );
 
-    // Apply the same rotation matrix as the pointGeometry to get world position
+    // Apply the transformation matrix to get world position
     position.applyMatrix4(this.pointGeometry.matrixWorld);
 
-    // Create sphere geometry for highlighted point
-    const geometry = new THREE.SphereGeometry(this.currentPointSize * 0.01, 8, 8);
-    const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    this.highlightedPointMesh = new THREE.Mesh(geometry, material);
-    this.highlightedPointMesh.position.copy(position);
+    // Create a Points geometry for the highlighted point indicator
+    const geometry = new THREE.BufferGeometry();
+    const positionArray = new Float32Array([position.x, position.y, position.z]);
+    geometry.setAttribute(
+      "position",
+      new THREE.Float32BufferAttribute(positionArray, 3),
+    );
 
+    const material = new THREE.PointsMaterial({
+      size: this.currentPointSize * 1.5, // Make it 1.5x larger for visibility
+      sizeAttenuation: true,
+      color: 0xff0000, // Red color
+    });
+
+    this.highlightedPointMesh = new THREE.Points(geometry, material);
     this.scene.add(this.highlightedPointMesh);
   }
 
@@ -328,12 +386,13 @@ class GcodeRenderer {
    */
   mapCoordinates(p) {
     const [x, y, z] = Array.isArray(p) ? p : [p.x, p.y, p.z];
-    
-    if (this.cylindricalMainAxis === 'x') {
+
+    if (this.cylindricalMainAxis === "x") {
       return { mapX: x, mapY: y, mapZ: z };
-    } else if (this.cylindricalMainAxis === 'y') {
+    } else if (this.cylindricalMainAxis === "y") {
       return { mapX: y, mapY: x, mapZ: z };
-    } else { // 'z'
+    } else {
+      // 'z'
       return { mapX: z, mapY: y, mapZ: x };
     }
   }
@@ -345,13 +404,17 @@ class GcodeRenderer {
    */
   transformToCylindrical(p) {
     const { mapX, mapY, mapZ } = this.mapCoordinates(p);
-    
+
     const radius = this.diameter / 2.0;
     const height = this.initialCylindricalHeight + mapZ;
     const theta = radius > 0 ? mapY / radius : mapY / 0.001;
     const longitudinalAxis = mapX;
-    
-    return new THREE.Vector3().setFromCylindricalCoords(height, theta, longitudinalAxis);
+
+    return new THREE.Vector3().setFromCylindricalCoords(
+      height,
+      theta,
+      longitudinalAxis,
+    );
   }
 
   /**
@@ -360,18 +423,26 @@ class GcodeRenderer {
    * @returns {THREE.Curve} Three.js curve object
    */
   createCurveFromGeometry(g) {
-    if (g.type === 'line') {
+    if (g.type === "line") {
       return new THREE.LineCurve3(
         new THREE.Vector3(g.start[0], g.start[1], g.start[2]),
-        new THREE.Vector3(g.end[0], g.end[1], g.end[2])
+        new THREE.Vector3(g.end[0], g.end[1], g.end[2]),
       );
-    } else if (g.type === 'arc') {
-      const radius = Math.sqrt((g.start[0] - g.center[0]) ** 2 + (g.start[1] - g.center[1]) ** 2);
-      const startAngle = Math.atan2(g.start[1] - g.center[1], g.start[0] - g.center[0]);
-      const endAngle = Math.atan2(g.end[1] - g.center[1], g.end[0] - g.center[0]);
+    } else if (g.type === "arc") {
+      const radius = Math.sqrt(
+        (g.start[0] - g.center[0]) ** 2 + (g.start[1] - g.center[1]) ** 2,
+      );
+      const startAngle = Math.atan2(
+        g.start[1] - g.center[1],
+        g.start[0] - g.center[0],
+      );
+      const endAngle = Math.atan2(
+        g.end[1] - g.center[1],
+        g.end[0] - g.center[0],
+      );
 
       let angleCalc = endAngle - startAngle;
-      const isCW = g.dir === 'cw';
+      const isCW = g.dir === "cw";
 
       if (angleCalc > 0 && isCW) {
         angleCalc = angleCalc - 2 * Math.PI;
@@ -400,9 +471,9 @@ class GcodeRenderer {
    * @param {THREE.Object3D} obj - Object to rotate
    */
   applyCylindricalRotation(obj) {
-    if (this.cylindricalMainAxis === 'x') {
+    if (this.cylindricalMainAxis === "x") {
       obj.rotateZ(-Math.PI / 2);
-    } else if (this.cylindricalMainAxis === 'z') {
+    } else if (this.cylindricalMainAxis === "z") {
       obj.rotateX(Math.PI / 2);
     }
   }
@@ -432,10 +503,14 @@ class GcodeRenderer {
       geometry.forEach((g) => {
         const curve = this.createCurveFromGeometry(g);
         const points3DSegment = curve.getPoints(50);
-        const transformedSegment = points3DSegment.map(p => this.transformToCylindrical(p));
+        const transformedSegment = points3DSegment.map((p) =>
+          this.transformToCylindrical(p),
+        );
 
         // Draw the transformed segment
-        const segmentGeometry = new THREE.BufferGeometry().setFromPoints(transformedSegment);
+        const segmentGeometry = new THREE.BufferGeometry().setFromPoints(
+          transformedSegment,
+        );
         const lineMaterial = new THREE.LineBasicMaterial({
           color: new THREE.Color(this.currentLineColor),
           linewidth: this.currentLineSize,
@@ -454,26 +529,37 @@ class GcodeRenderer {
 
     // Transform points if cylindrical mode is enabled
     if (!this.enableCylindricalTransform) {
-      buffer.setAttribute('position', new THREE.Float32BufferAttribute(points.flat(), 3));
+      buffer.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(points.flat(), 3),
+      );
     } else {
-      const transformedPoints = points.map(p => {
+      const transformedPoints = points.map((p) => {
         const v = this.transformToCylindrical(p);
         return [v.x, v.y, v.z];
       });
-      buffer.setAttribute('position', new THREE.Float32BufferAttribute(transformedPoints.flat(), 3));
+      buffer.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(transformedPoints.flat(), 3),
+      );
     }
 
     // Create color attribute for all points (base point color)
     const colors = new Float32Array(pointCount * 3);
-    const baseColor = this.pointBaseColor || new THREE.Color(this.currentPointColor);
+    const baseColor =
+      this.pointBaseColor || new THREE.Color(this.currentPointColor);
     for (let i = 0; i < pointCount; i++) {
       colors[i * 3] = baseColor.r;
       colors[i * 3 + 1] = baseColor.g;
       colors[i * 3 + 2] = baseColor.b;
     }
-    buffer.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    buffer.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
 
-    const material = new THREE.PointsMaterial({ size: this.currentPointSize, sizeAttenuation: true, vertexColors: true });
+    const material = new THREE.PointsMaterial({
+      size: this.currentPointSize,
+      sizeAttenuation: true,
+      vertexColors: true,
+    });
     this.pointGeometry = new THREE.Points(buffer, material);
 
     if (this.enableCylindricalTransform) {
@@ -499,9 +585,13 @@ class GcodeRenderer {
       pathGeometry.boundingBox.max.y - pathGeometry.boundingBox.min.y,
     );
     this.adjustCamera(frustumSize * 1.5);
-    this.controls.fitToBox(pathGeometry.boundingBox, false, { paddingTop: 10, paddingBottom: 10, paddingLeft: 10, paddingRight: 10 });
+    this.controls.fitToBox(pathGeometry.boundingBox, false, {
+      paddingTop: 10,
+      paddingBottom: 10,
+      paddingLeft: 10,
+      paddingRight: 10,
+    });
   }
-
 }
 
-export { GcodeRenderer }
+export { GcodeRenderer };

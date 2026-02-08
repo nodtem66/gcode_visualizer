@@ -21,16 +21,16 @@ An alternative G-code viewer that allows to visualize flat or tube structure. Ma
 * Current available symbols are `x, y, z, i, j, k, a, b, c, u, v, w`
 
 **Cylindrical Transformation**
-* It is for visualizing a tube with special axis like `G0 X1 U1`.
+
+It is for visualizing a tube with special axis like `G0 X1 U1`.
 
   > Note that unit of `U` is `mm`. For example, `G0 U6.283185` will move a rod with a diameter of 1 mm one round (360°).
 
 * Steps:
   1. Define the longitudinal axis (main axis)
-  2. The rotational axis (circumferential axis) must be visualized as `y` axis
+  2. The rotational axis (circumferential axis) must be the defined `y` axis
   3. Set diameter. This number convert the distance in circumferential axis to angle.
   4. (Optional) Set an initial height. Tube with original diameter can be visualized with different radius.
-  5. Set curve resolution. Increase this number to enhance curve smoothness. It will increase time to render.
 
 **Visualization settings**
 
@@ -41,6 +41,9 @@ The settings can be set through Gcode comments:
 ; hide_layers: true
 ; layer_height: 0.1
 ; point_size: 2
+; point_color: #000000
+; line_color: #0000ff
+; background_color: #ffffff
 ; x_axis: x
 ; y_axis: u
 ; z_axis: z

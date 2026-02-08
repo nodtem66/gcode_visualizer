@@ -1,5 +1,5 @@
 export default {
   resolve: {
-    dedupe: ['three']
-  }
-}
+    dedupe: ["three"],
+  },
+};

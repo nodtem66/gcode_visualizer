@@ -1,6 +1,6 @@
 const containsLineEnd = (() => {
   const re = new RegExp(/.*(?:\r\n|\r|\n)/g);
-  return (s => !!s.match(re));
+  return (s) => !!s.match(re);
 })();
 
 // @param {string} str The G-code text string
@@ -10,10 +10,10 @@ const _LocalFn = {
     this.state = {
       lineCount: 0,
       chunkCount: 0,
-      lastChunkEndedWithCR: false
+      lastChunkEndedWithCR: false,
     };
 
-    this.lineBuffer = '';
+    this.lineBuffer = "";
     this.re = new RegExp(/.*(?:\r\n|\r|\n)|.+$/g);
   },
   transform(chunk, controller) {
@@ -25,21 +25,27 @@ const _LocalFn = {
       const lines = this.lineBuffer.match(this.re);
       if (lines && lines.length > 0) {
         // Do not split CRLF which spans chunks
-        if (this.state.lastChunkEndedWithCR && lines[0] === '\n') {
+        if (this.state.lastChunkEndedWithCR && lines[0] === "\n") {
           lines.shift();
         }
-        this.state.lastChunkEndedWithCR = (this.lineBuffer[this.lineBuffer.length - 1] === '\r');
+        this.state.lastChunkEndedWithCR =
+          this.lineBuffer[this.lineBuffer.length - 1] === "\r";
 
-        if ((this.lineBuffer[this.lineBuffer.length - 1] === '\r') ||
-          (this.lineBuffer[this.lineBuffer.length - 1] === '\n')) {
-          this.lineBuffer = '';
+        if (
+          this.lineBuffer[this.lineBuffer.length - 1] === "\r" ||
+          this.lineBuffer[this.lineBuffer.length - 1] === "\n"
+        ) {
+          this.lineBuffer = "";
         } else {
-          const line = lines.pop() || '';
+          const line = lines.pop() || "";
           this.lineBuffer = line;
         }
         const results = lines.map((line) => this.parseLine(line));
         this.state.lineCount += results.length;
-        controller.enqueue({readBytes: this.state.chunkCount, results: results});
+        controller.enqueue({
+          readBytes: this.state.chunkCount,
+          results: results,
+        });
       }
     }
   },
@@ -49,18 +55,20 @@ const _LocalFn = {
       const line = this.lineBuffer.trim();
       if (line.length > 0) {
         this.state.lineCount += 1;
-        controller.enqueue({readBytes: this.state.chunkCount, results: [this.parseLine(line)]});
+        controller.enqueue({
+          readBytes: this.state.chunkCount,
+          results: [this.parseLine(line)],
+        });
       }
 
-      this.lineBuffer = '';
+      this.lineBuffer = "";
       this.state.lastChunkEndedWithCR = false;
     }
     controller.terminate();
-  }
+  },
 };
 
 class GCodeLineStream extends TransformStream {
-
   // @param {object} [options] The options object
   // @param {number} [options.batchSize] The batch size.
   // @param {boolean} [options.flatten] True to flatten the array, false otherwise.
