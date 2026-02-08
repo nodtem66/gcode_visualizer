@@ -78,12 +78,12 @@ dialogCloseButton.addEventListener("click", () => {
   dialog.close();
 });
 
-gui.on("hide points", (value) => {
+gui.on("hide_points", (value) => {
   if (gcode_renderer.pointGeometry) {
     gcode_renderer.pointGeometry.visible = !value;
   }
 });
-gui.on("point size", (value) => {
+gui.on("point_size", (value) => {
   gcode_renderer.currentPointSize = value;
   if (gcode_renderer.pointGeometry) {
     gcode_renderer.pointGeometry.material.size = value;
@@ -96,13 +96,13 @@ gui.on("point size", (value) => {
     );
   }
 });
-gui.on("point color", (value) => {
+gui.on("point_color", (value) => {
   gcode_renderer.updatePointColor(value);
 });
-gui.on("line color", (value) => {
+gui.on("line_color", (value) => {
   gcode_renderer.updateLineStyle(value);
 });
-gui.on("background color", (value) => {
+gui.on("background_color", (value) => {
   gcode_renderer.updateBackgroundColor(value);
 });
 
@@ -116,63 +116,53 @@ const setAndReprocess =
     }
   };
 
-gui.on(
-  "layer height",
-  setAndReprocess((value) => (parser.layerHeight = value)),
-);
-gui.on("hide grid", (value) => {
+gui.on("hide_grid", (value) => {
   gcode_renderer.gridVisible = !value;
   gcode_renderer.helper.visible = !value;
 });
 gui.on(
-  "hide layers",
-  setAndReprocess((value) => (parser.enableLayerView = !value)),
-);
-gui.on(
-  "x axis",
+  "x_axis",
   setAndReprocess((value) => (parser.x_axis = value)),
 );
 gui.on(
-  "y axis",
+  "y_axis",
   setAndReprocess((value) => (parser.y_axis = value)),
 );
 gui.on(
-  "z axis",
+  "z_axis",
   setAndReprocess((value) => (parser.z_axis = value)),
 );
 gui.on(
-  "cylindrical diameter",
+  "cylindrical_long_axis_diameter",
   setAndReprocess((value) => (gcode_renderer.diameter = value)),
 );
 gui.on(
-  "cylindrical main axis",
+  "cylindrical_long_axis",
   setAndReprocess((value) => (gcode_renderer.cylindricalMainAxis = value)),
 );
 gui.on(
-  "enable cylindrical",
+  "enable_cylindrical",
   setAndReprocess(
     (value) => (gcode_renderer.enableCylindricalTransform = value),
   ),
 );
 gui.on(
-  "cylindrical height",
+  "cylindrical_rendering_diameter",
   setAndReprocess((value) => (gcode_renderer.initialCylindricalHeight = value)),
 );
 
 // Reset function to reset GUI options and reprocess the file with default settings
 function reset() {
   gui.reset();
-  parser.x_axis = gui.settings["x axis"];
-  parser.y_axis = gui.settings["y axis"];
-  parser.z_axis = gui.settings["z axis"];
-  parser.enableLayerView = !gui.settings["hide layers"];
-  parser.layerHeight = gui.settings["layer height"];
+  parser.x_axis = gui.settings["x_axis"];
+  parser.y_axis = gui.settings["y_axis"];
+  parser.z_axis = gui.settings["z_axis"];
   gcode_renderer.enableCylindricalTransform =
-    gui.settings["enable cylindrical"];
-  gcode_renderer.diameter = gui.settings["cylindrical diameter"];
-  gcode_renderer.initialCylindricalHeight = gui.settings["cylindrical height"];
-  gcode_renderer.cylindricalMainAxis = gui.settings["cylindrical main axis"];
-  gcode_renderer.updatePointColor(gui.settings["point color"]);
-  gcode_renderer.updateLineStyle(gui.settings["line color"]);
-  gcode_renderer.updateBackgroundColor(gui.settings["background color"]);
+    gui.settings["enable_cylindrical"];
+  gcode_renderer.diameter = gui.settings["cylindrical_long_axis_diameter"];
+  gcode_renderer.initialCylindricalHeight = gui.settings["cylindrical_rendering_diameter"];
+  gcode_renderer.cylindricalMainAxis = gui.settings["cylindrical_long_axis"];
+  gcode_renderer.updatePointColor(gui.settings["point_color"]);
+  gcode_renderer.updateLineStyle(gui.settings["line_color"]);
+  gcode_renderer.updateBackgroundColor(gui.settings["background_color"]);
 }

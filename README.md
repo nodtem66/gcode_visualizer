@@ -1,12 +1,12 @@
 # Gcode viewer for Melt electrowriting Printer
 
-[Online GCODE viewer](https://gcode-visualizer.pages.dev/) hosted by Cloudflare Pages.
-
-
-An alternative G-code viewer that allows to visualize flat or tube structure. Many people use [Ncviewer](https://ncviewer.com/) for visualizing a G-code file, which is maintained by one developer. I, for one, cannot ensure that this great tool will last forever. So, I decided to create this program from scatch and keep the functionality as small as possible. Please feel free to fork and modify it. By this way, the project will be sustainable for the community.
+[Online app (Cloudflare)](https://gcode-visualizer.pages.dev/) | [Youtube Showcase](https://www.youtube.com/watch?v=q8Z0wkuDmsM) | License: MIT
 
 
 ![Thumbnail](https://gcode-visualizer.pages.dev/thumbnail.png)
+
+An alternative G-code viewer that allows to visualize flat or tube structure. Many people use [Ncviewer](https://ncviewer.com/) for visualizing a G-code file, which is maintained by one developer. I, for one, cannot ensure that this great tool will last forever. So, I decided to create this program from scatch and keep the functionality as small as possible. Please feel free to fork and modify it. By this way, the project will be sustainable for the community.
+
 
 
 ## Features
@@ -32,14 +32,28 @@ It is for visualizing a tube with special axis like `G0 X1 U1`.
   3. Set diameter. This number convert the distance in circumferential axis to angle.
   4. (Optional) Set an initial height. Tube with original diameter can be visualized with different radius.
 
-**Visualization settings**
+## Visualization settings
+| Setting | Description | Default |
+|---------|-------------|---------|
+| Hide points | Disable rendering points | `false` |
+| Hide grid | Disable rendering 1mm×1mm grids | `false` |
+| Point size | Adjust the size of rendered points | `2` |
+| Point color | Set the color of rendered points in hex format | `#000000` |
+| Line color | Set the color of rendered lines in hex format | `#0000ff` |
+| Background color | Set the background color in hex format | `#ffffff` |
+| X axis | Customize symbol/name for X axis | `x` |
+| Y axis | Customize symbol/name for Y axis | `y` |
+| Z axis | Customize symbol/name for Z axis | `z` |
+| Available symbols | Symbols: `x, y, z, i, j, k, a, b, c, u, v, w` | — |
+| Enable cylindrical | Enable cylindrical transformation for tube visualization | `false` |
+| Cylindrical long axis | Define the longitudinal (main) axis | `x` |
+| Cylindrical long axis diameter | Set the diameter in mm for circumferential axis conversion | `1` |
+| Cylindrical rendering diameter | Set the rendering diameter for tube visualization | `1.5` |
 
 The settings can be set through Gcode comments:
 ```
 ; hide_points: false
 ; hide_grid: true
-; hide_layers: true
-; layer_height: 0.1
 ; point_size: 2
 ; point_color: #000000
 ; line_color: #0000ff
@@ -48,16 +62,16 @@ The settings can be set through Gcode comments:
 ; y_axis: u
 ; z_axis: z
 ; enable_cylindrical: true
-; cylindrical_main_axis: x
-; cylindrical_diameter: 3
-; cylindrical_height: 1.5
+; cylindrical_long_axis: x
+; cylindrical_long_axis_diameter: 3
+; cylindrical_rendering_diameter: 1.5
 ```
 ## Questions
 
 **1. How to measure a pore size or a distance between two points?**<br>
 Click the first point. The program will show it 3D position above the options. Then, click the second one, do a calculation based on positions of two points.
 
-**2. How to save an image of the rendered geometries?**<br>
+**2. How to save an image of the rendered geometry?**<br>
 The simple answer is taking a screenshot.
 
 **3. How to add/remove options?**<br>
@@ -85,8 +99,3 @@ Afterwards, `JSONGeometryParser` (in `json_geometry_parser.js`) convert this int
 ```
 Finally, `GcodeRenderer` (in `gcode_renderer.js`) renders this geometry object using [Three.js](https://threejs.org/). If you would like to extend the software, I suggest to check these three scripts.
 
-
-## Youtube Showcase
-[![Youtube video](https://img.youtube.com/vi/q8Z0wkuDmsM/0.jpg)](https://www.youtube.com/watch?v=q8Z0wkuDmsM)
-
-License: MIT

@@ -1,9 +1,9 @@
 ; hide_grid: true
-; point_size: 2
-; cylindrical_diameter: 3
-; cylindrical_main_axis: x
-; enable_cylindrical: true
 ; y_axis: u
+; point_size: 5
+; enable_cylindrical: true
+; cylindrical_long_axis_diameter: 3
+; cylindrical_long_axis: x
 G90
 G1 X0 F400
 G1 U9.42477796077

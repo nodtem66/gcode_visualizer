@@ -5,9 +5,6 @@ class JsonGeometryParser {
   position = {};
   positionSystem = ABSOLUTE_POSITION;
   feedrate = 100;
-  layerHeight = 0.1;
-  enableLayerView = false;
-  totalLayers = 0;
   geometry = [];
   cursorPosition = [];
   x_axis = "x";
@@ -48,22 +45,6 @@ class JsonGeometryParser {
       const val = tag[key];
       if (key === "CTS") {
         this.feedrate = val;
-      } else if (key === "layer_height") {
-        this.layerHeight = val;
-      } else if (
-        key === "total_layers" ||
-        key === "total_layer" ||
-        key === "totalLayers" ||
-        key === "totalLayer"
-      ) {
-        this.totalLayers = val;
-      } else if (key === "layer") {
-        if (this.enableLayerView) {
-          const z = parseInt(val) * this.layerHeight;
-          if (!Number.isNaN(z)) {
-            this.position.z = z;
-          }
-        }
       }
     }
   }

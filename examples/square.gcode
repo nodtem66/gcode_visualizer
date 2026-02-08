@@ -2,14 +2,13 @@
 ; Generated date: 17-12-2024_162820
 ;
 ; hide_grid: true
-; hide_layers: true
 ; x_axis: x
 ; y_axis: u
 ; z_axis: z
+; point_size: 5
 ; enable_cylindrical: true
-; cylindrical_main_axis: x
-; cylindrical_diameter: 3
-; curve_step: 0.2
+; cylindrical_long_axis: x
+; cylindrical_long_axis_diameter: 3
 
 ; start gcode
 ; Relative positioning
