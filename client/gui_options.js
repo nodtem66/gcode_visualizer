@@ -10,6 +10,9 @@ const DEFAULT_SETTINGS = {
   'hide layers': true,
   'layer height': 0.1,
   'point size': 5,
+  'point color': '#000000',
+  'line color': '#0000ff',
+  'background color': '#ffffff',
   'x axis': 'x',
   'y axis': 'y',
   'z axis': 'z',
@@ -17,7 +20,6 @@ const DEFAULT_SETTINGS = {
   'cylindrical height': 1.5,
   'enable cylindrical': false,
   'cylindrical main axis': 'x',
-  'curve step': 0.5,
 };
 
 class GuiOptions {
@@ -33,6 +35,9 @@ class GuiOptions {
     gui.add(this.settings, 'hide layers').name('Hide Layers').onFinishChange(this.emit.bind(this, 'hide layers'));
     gui.add(this.settings, 'layer height', 0.01, 10).name('Layer Height').onFinishChange(this.emit.bind(this, 'layer height'));
     gui.add(this.settings, 'point size', 1, 20).name('Point Size').onFinishChange(this.emit.bind(this, 'point size'));
+    gui.addColor(this.settings, 'point color').name('Point Color').onFinishChange(this.emit.bind(this, 'point color'));
+    gui.addColor(this.settings, 'line color').name('Line Color').onFinishChange(this.emit.bind(this, 'line color'));
+    gui.addColor(this.settings, 'background color').name('Background Color').onFinishChange(this.emit.bind(this, 'background color'));
     
     const axisOptions = gui.addFolder('Axis Options');
     axisOptions.add(this.settings, 'x axis', AXIS_NAMES).name('X Axis').onFinishChange(this.emit.bind(this, 'x axis'));
@@ -44,7 +49,6 @@ class GuiOptions {
     cylindricalOptions.add(this.settings, 'cylindrical main axis', MAIN_AXIS_NAMES).name('Main Axis').onFinishChange(this.emit.bind(this, 'cylindrical main axis'));
     cylindricalOptions.add(this.settings, 'cylindrical diameter', 1, 100).name('Diameter').onFinishChange(this.emit.bind(this, 'cylindrical diameter'));
     cylindricalOptions.add(this.settings, 'cylindrical height', 0, 100).name('Initial Height').onFinishChange(this.emit.bind(this, 'cylindrical height'));
-    cylindricalOptions.add(this.settings, 'curve step', 0.0001, 10, 0.01).name('Curve Step').onFinishChange(this.emit.bind(this, 'curve step'));
     this.gui = gui;
   }
 

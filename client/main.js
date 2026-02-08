@@ -1,4 +1,3 @@
-//import { io } from "socket.io-client";
 import { GcodeRenderer } from "./gcode_renderer.js";
 import { ProgressBar } from './progress_bar.js';
 import { fileOpen } from "browser-fs-access";
@@ -7,10 +6,6 @@ import { gcodeToJson } from "./gcode_to_json.js";
 import { JsonGeometryParser } from "./json_geometry_parser.js";
 import { GuiOptionParser } from "./gui_option_parser.js";
 import { GuiOptions } from "./gui_options.js";
-import g from "three/examples/jsm/libs/lil-gui.module.min.js";
-
-//const code_viewer = new CodeViewer(document, window);
-//code_viewer.displayLineNumbers();
 
 let gcode_renderer = new GcodeRenderer();
 gcode_renderer.animate(true);
@@ -94,6 +89,15 @@ gui.on('point size', (value) => {
     gcode_renderer.updateHighlightedPointSphere(gcode_renderer.highlightedPointIndex);
   }
 });
+gui.on('point color', (value) => {
+  gcode_renderer.updatePointColor(value);
+});
+gui.on('line color', (value) => {
+  gcode_renderer.updateLineStyle(value);
+});
+gui.on('background color', (value) => {
+  gcode_renderer.updateBackgroundColor(value);
+});
 
 // Helper to create handlers that set a value and reprocess the file
 const setAndReprocess = (setter) => (value, toggle_reprocess = true) => {
@@ -112,7 +116,6 @@ gui.on('z axis', setAndReprocess((value) => parser.z_axis = value));
 gui.on('cylindrical diameter', setAndReprocess((value) => gcode_renderer.diameter = value));
 gui.on('cylindrical main axis', setAndReprocess((value) => gcode_renderer.cylindricalMainAxis = value));
 gui.on('enable cylindrical', setAndReprocess((value) => gcode_renderer.enableCylindricalTransform = value));
-gui.on('curve step', setAndReprocess((value) => gcode_renderer.curveStep = value));
 gui.on('cylindrical height', setAndReprocess((value) => gcode_renderer.initialCylindricalHeight = value));
 
 // Reset function to reset GUI options and reprocess the file with default settings
@@ -127,5 +130,7 @@ function reset() {
   gcode_renderer.diameter = gui.settings['cylindrical diameter'];
   gcode_renderer.initialCylindricalHeight = gui.settings['cylindrical height'];
   gcode_renderer.cylindricalMainAxis = gui.settings['cylindrical main axis'];
-  gcode_renderer.curveStep = gui.settings['curve step'];  
+  gcode_renderer.updatePointColor(gui.settings['point color']);
+  gcode_renderer.updateLineStyle(gui.settings['line color']);
+  gcode_renderer.updateBackgroundColor(gui.settings['background color']);
 }

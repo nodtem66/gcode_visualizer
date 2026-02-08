@@ -34,7 +34,7 @@ An alternative G-code viewer that allows to visualize flat or tube structure. Ma
 
 **Visualization settings**
 
-The settings can be set through Gcode commands:
+The settings can be set through Gcode comments:
 ```
 ; hide_points: false
 ; hide_grid: true
@@ -48,7 +48,6 @@ The settings can be set through Gcode commands:
 ; cylindrical_main_axis: x
 ; cylindrical_diameter: 3
 ; cylindrical_height: 1.5
-; curve_step: 0.5
 ```
 ## Questions
 

@@ -24,6 +24,8 @@ import {
   SphereGeometry,
   MeshBasicMaterial,
   Mesh,
+  Curve,
+  LineCurve3,
 } from 'three';
 
 import { ViewportGizmo } from "three-viewport-gizmo";
@@ -55,6 +57,8 @@ const THREE = {
   SphereGeometry: SphereGeometry,
   MeshBasicMaterial: MeshBasicMaterial,
   Mesh: Mesh,
+  Curve: Curve,
+  LineCurve3: LineCurve3,
 };
 
 CameraControls.install({ THREE: THREE });
@@ -69,16 +73,21 @@ class GcodeRenderer {
   diameter = 3;                         // Diameter of the cylindrical scaffold, if enabled cylindrical transform
   initialCylindricalHeight = 1.5;       // Initial height offset for cylindrical scaffold if enabled cylindrical transform
   cylindricalMainAxis = 'x';            // Main axis for cylindrical scaffold: 'x', 'y', or 'z'
-  curveStep = 0.5;                      // Step size used to sample curve segments when drawing cylindrical scaffold
   highlightedPointIndex = -1;           // Index of the currently highlighted point (-1 means no highlight)
   currentPointSize = 5;                 // Current point size from GUI
+  currentPointColor = '#000000';        // Current point color from GUI
+  currentLineColor = '#0000ff';         // Current line color from GUI
+  currentLineSize = 1;                  // Current line size from GUI
+  currentBackgroundColor = '#ffffff';   // Current background color from GUI
   highlightedPointMesh = null;          // Mesh for the highlighted point
   gridVisible = true;                   // Whether the grid is currently visible
+  lineSegments = [];                    // Track line segments for style updates
 
   constructor() {
     this.document = document;
     this.window = window;
     this.style = document.body.style;
+    this.pointBaseColor = new THREE.Color(this.currentPointColor);
     this.renderer = new THREE.WebGLRenderer({ antialias: false });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.shadowMap.enabled = true;
@@ -97,7 +106,7 @@ class GcodeRenderer {
 
     this.clock = new THREE.Clock();
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xffffff);
+    this.scene.background = new THREE.Color(this.currentBackgroundColor);
     //const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.001, 10000);
     const camera = new THREE.OrthographicCamera(frustumSize * aspect / - 2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / - 2, 1, 1000);
     camera.position.set(0, 0, 100);
@@ -127,7 +136,7 @@ class GcodeRenderer {
     //viewportGizmo.render();
     this.viewportGizmo = viewportGizmo;
 
-    const helper = new THREE.GridHelper(1, 1, 0xfef000, 0xd0d0d0);
+    const helper = new THREE.GridHelper(100, 100, 0xd0d0d0, 0xf0f0f0);
     helper.rotateX(Math.PI / 2);
     //helper.position.y = - 199;
     helper.material.opacity = 0.1;
@@ -204,9 +213,9 @@ class GcodeRenderer {
     // Reset previous highlight
     if (this.highlightedPointIndex !== -1) {
       const prevIndex = this.highlightedPointIndex * 3;
-      colors[prevIndex] = 0;      // R
-      colors[prevIndex + 1] = 0;  // G
-      colors[prevIndex + 2] = 0;  // B
+      colors[prevIndex] = this.pointBaseColor.r;      // R
+      colors[prevIndex + 1] = this.pointBaseColor.g;  // G
+      colors[prevIndex + 2] = this.pointBaseColor.b;  // B
     }
 
     // Highlight new point in red
@@ -254,8 +263,48 @@ class GcodeRenderer {
     this.scene.add(this.highlightedPointMesh);
   }
 
+  updatePointColor(color) {
+    this.currentPointColor = color;
+    this.pointBaseColor = new THREE.Color(color);
+
+    if (!this.pointGeometry) return;
+    const colors = this.pointGeometry.geometry.attributes.color.array;
+    for (let i = 0; i < colors.length; i += 3) {
+      colors[i] = this.pointBaseColor.r;
+      colors[i + 1] = this.pointBaseColor.g;
+      colors[i + 2] = this.pointBaseColor.b;
+    }
+
+    if (this.highlightedPointIndex !== -1) {
+      const highlightIndex = this.highlightedPointIndex * 3;
+      colors[highlightIndex] = 1;
+      colors[highlightIndex + 1] = 0;
+      colors[highlightIndex + 2] = 0;
+    }
+
+    this.pointGeometry.geometry.attributes.color.needsUpdate = true;
+  }
+
+  updateLineStyle(color) {
+    this.currentLineColor = color;
+    this.lineSegments.forEach((line) => {
+      if (!line.material) return;
+      line.material.color.set(color);
+      line.material.linewidth = this.currentLineSize;
+      line.material.needsUpdate = true;
+    });
+  }
+
+  updateBackgroundColor(color) {
+    this.currentBackgroundColor = color;
+    if (this.scene) {
+      this.scene.background = new THREE.Color(color);
+    }
+  }
+
   reset() {
     this.highlightedPointIndex = -1;
+    this.lineSegments = [];
     if (this.highlightedPointMesh) {
       this.scene.remove(this.highlightedPointMesh);
       this.highlightedPointMesh.geometry.dispose();
@@ -268,76 +317,134 @@ class GcodeRenderer {
   draw(geometry) {
     if (geometry.length <= 1) return;
 
-    const groupedByStartZ = geometry.reduce((acc, g) => {
-      const key = g.start[2];
-      if (!acc[key]) {
-        acc[key] = [];
-      }
-      acc[key].push(g);
-      return acc;
-    }, {});
-    for (const z in groupedByStartZ) {
-      this.drawPath(groupedByStartZ[z], parseFloat(z));
+    // Draw all geometry as a continuous 3D path without grouping by Z
+    this.drawPath(geometry);
+  }
+
+  /**
+   * Maps 3D coordinates based on the cylindrical main axis
+   * @param {Array|Object} p - Point with x, y, z properties or [x, y, z] array
+   * @returns {Object} Object with mapX, mapY, mapZ properties
+   */
+  mapCoordinates(p) {
+    const [x, y, z] = Array.isArray(p) ? p : [p.x, p.y, p.z];
+    
+    if (this.cylindricalMainAxis === 'x') {
+      return { mapX: x, mapY: y, mapZ: z };
+    } else if (this.cylindricalMainAxis === 'y') {
+      return { mapX: y, mapY: x, mapZ: z };
+    } else { // 'z'
+      return { mapX: z, mapY: y, mapZ: x };
     }
   }
 
-  drawPath(geometry, z = 0) {
-    const path = new THREE.Path();
-    const lineCount = [];
-    geometry.forEach((g) => {
-      if (g.type === 'line') {
-        path.moveTo(g.start[0], g.start[1]);
-        path.lineTo(g.end[0], g.end[1]);
-      } else if (g.type == 'arc') {
-        const radius = Math.sqrt((g.start[0] - g.center[0]) ** 2 + (g.start[1] - g.center[1]) ** 2);
-        const startAngle = Math.atan2(g.start[1] - g.center[1], g.start[0] - g.center[0]);
-        const endAngle = Math.atan2(g.end[1] - g.center[1], g.end[0] - g.center[0]);
-        if (Math.abs(startAngle - endAngle) > 1e-3) {
-          path.absarc(g.center[0], g.center[1], radius, startAngle, endAngle, g.dir === 'cw');
-        } else {
-          path.absarc(g.center[0], g.center[1], radius, startAngle, startAngle + 2 * Math.PI, g.dir === 'cw');
-          path.absarc(g.center[0], g.center[1], radius, startAngle + 2 * Math.PI, endAngle, g.dir === 'cw');
-        }
+  /**
+   * Transforms a point to cylindrical coordinates
+   * @param {Array|Object} p - Point to transform
+   * @returns {THREE.Vector3} Transformed point
+   */
+  transformToCylindrical(p) {
+    const { mapX, mapY, mapZ } = this.mapCoordinates(p);
+    
+    const radius = this.diameter / 2.0;
+    const height = this.initialCylindricalHeight + mapZ;
+    const theta = radius > 0 ? mapY / radius : mapY / 0.001;
+    const longitudinalAxis = mapX;
+    
+    return new THREE.Vector3().setFromCylindricalCoords(height, theta, longitudinalAxis);
+  }
+
+  /**
+   * Creates a Three.js curve from a geometry object
+   * @param {Object} g - Geometry object with type, start, end, and optional center/dir
+   * @returns {THREE.Curve} Three.js curve object
+   */
+  createCurveFromGeometry(g) {
+    if (g.type === 'line') {
+      return new THREE.LineCurve3(
+        new THREE.Vector3(g.start[0], g.start[1], g.start[2]),
+        new THREE.Vector3(g.end[0], g.end[1], g.end[2])
+      );
+    } else if (g.type === 'arc') {
+      const radius = Math.sqrt((g.start[0] - g.center[0]) ** 2 + (g.start[1] - g.center[1]) ** 2);
+      const startAngle = Math.atan2(g.start[1] - g.center[1], g.start[0] - g.center[0]);
+      const endAngle = Math.atan2(g.end[1] - g.center[1], g.end[0] - g.center[0]);
+
+      let angleCalc = endAngle - startAngle;
+      const isCW = g.dir === 'cw';
+
+      if (angleCalc > 0 && isCW) {
+        angleCalc = angleCalc - 2 * Math.PI;
+      } else if (angleCalc < 0 && !isCW) {
+        angleCalc = angleCalc + 2 * Math.PI;
       }
-      lineCount.push(g.line);
-    });
-    if (path.curves.length == 0) return;
-    // Normal flat scaffold
+
+      if (Math.abs(angleCalc) < 1e-3) {
+        angleCalc = isCW ? -2 * Math.PI : 2 * Math.PI;
+      }
+
+      const curve = new THREE.Curve();
+      curve.getPoint = function (t) {
+        const angle = startAngle + t * angleCalc;
+        const x = g.center[0] + radius * Math.cos(angle);
+        const y = g.center[1] + radius * Math.sin(angle);
+        const z = g.start[2] + t * (g.end[2] - g.start[2]);
+        return new THREE.Vector3(x, y, z);
+      };
+      return curve;
+    }
+  }
+
+  /**
+   * Applies rotation to an object based on the cylindrical main axis
+   * @param {THREE.Object3D} obj - Object to rotate
+   */
+  applyCylindricalRotation(obj) {
+    if (this.cylindricalMainAxis === 'x') {
+      obj.rotateZ(-Math.PI / 2);
+    } else if (this.cylindricalMainAxis === 'z') {
+      obj.rotateX(Math.PI / 2);
+    }
+  }
+
+  drawPath(geometry) {
+    // Normal flat scaffold - draw 3D path using curves
     if (!this.enableCylindricalTransform) {
-      const points = path.getPoints();
-      const pathGeometry = new THREE.BufferGeometry().setFromPoints(points);
-      const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
-      if (z > 0) {
-        pathGeometry.translate(0, 0, z);
-      }
+      const points3D = [];
+
+      geometry.forEach((g) => {
+        const curve = this.createCurveFromGeometry(g);
+        const curvePoints = curve.getPoints(50);
+        points3D.push(...curvePoints);
+      });
+
+      const pathGeometry = new THREE.BufferGeometry().setFromPoints(points3D);
+      const lineMaterial = new THREE.LineBasicMaterial({
+        color: new THREE.Color(this.currentLineColor),
+        linewidth: this.currentLineSize,
+      });
       const line = new THREE.Line(pathGeometry, lineMaterial);
+      this.lineSegments.push(line);
       this.scene.add(line);
     }
-    // Cylindrical scaffold
+    // Cylindrical scaffold - use curves directly and transform
     else {
-      const step = Math.max(this.curveStep, 1e-6); // avoid zero or negative step
-      const points = path.curves.flatMap((curve) => {
-        const length = curve.getLength();
-        const divisions = Math.max(2, Math.ceil(length / step));
-        return curve.getSpacedPoints(divisions);
+      geometry.forEach((g) => {
+        const curve = this.createCurveFromGeometry(g);
+        const points3DSegment = curve.getPoints(50);
+        const transformedSegment = points3DSegment.map(p => this.transformToCylindrical(p));
+
+        // Draw the transformed segment
+        const segmentGeometry = new THREE.BufferGeometry().setFromPoints(transformedSegment);
+        const lineMaterial = new THREE.LineBasicMaterial({
+          color: new THREE.Color(this.currentLineColor),
+          linewidth: this.currentLineSize,
+        });
+        const line = new THREE.Line(segmentGeometry, lineMaterial);
+        this.applyCylindricalRotation(line);
+        this.lineSegments.push(line);
+        this.scene.add(line);
       });
-      const transformedPoints = points.map((p) => {
-        let val;
-        if (this.cylindricalMainAxis === 'x') val = { x: p.x, y: p.y, z };
-        else if (this.cylindricalMainAxis === 'y') val = { x: p.y, y: p.x, z };
-        else if (this.cylindricalMainAxis === 'z') val = { x: z, y: p.y, z: p.x };
-        const radius = this.diameter / 2;
-        const height = this.initialCylindricalHeight + val.z;
-        const theta = radius > 0 ? val.y / radius : val.y / 0.001;
-        const y = val.x;
-        return new THREE.Vector3().setFromCylindricalCoords(height, theta, y)
-      });
-      const pathGeometry = new THREE.BufferGeometry().setFromPoints(transformedPoints);
-      const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
-      const line = new THREE.Line(pathGeometry, lineMaterial);
-      if (this.cylindricalMainAxis === 'x') line.rotateZ(-Math.PI / 2);
-      else if (this.cylindricalMainAxis === 'z') line.rotateX(Math.PI / 2);
-      this.scene.add(line);
     }
   }
 
@@ -345,32 +452,24 @@ class GcodeRenderer {
     const buffer = new THREE.BufferGeometry();
     const pointCount = points.length;
 
-    // Normal flat scaffold
+    // Transform points if cylindrical mode is enabled
     if (!this.enableCylindricalTransform) {
       buffer.setAttribute('position', new THREE.Float32BufferAttribute(points.flat(), 3));
-    }
-    // Cylindrical scaffold
-    else {
-      const transformedPoints = points.map((p) => {
-        let val;
-        if (this.cylindricalMainAxis === 'x') val = { x: p[0], y: p[1], z: p[2] };
-        else if (this.cylindricalMainAxis === 'y') val = { x: p[1], y: [0], z: p[2] };
-        else if (this.cylindricalMainAxis === 'z') val = { x: p[2], y: p[1], z: p[0] };
-        const radius = this.diameter / 2.0;
-        const height = this.initialCylindricalHeight + val.z;
-        const theta = val.y / (radius);
-        const l = val.x;
-        return [height * Math.sin(theta), l, height * Math.cos(theta)];
+    } else {
+      const transformedPoints = points.map(p => {
+        const v = this.transformToCylindrical(p);
+        return [v.x, v.y, v.z];
       });
       buffer.setAttribute('position', new THREE.Float32BufferAttribute(transformedPoints.flat(), 3));
     }
 
-    // Create color attribute for all points (initially black)
+    // Create color attribute for all points (base point color)
     const colors = new Float32Array(pointCount * 3);
+    const baseColor = this.pointBaseColor || new THREE.Color(this.currentPointColor);
     for (let i = 0; i < pointCount; i++) {
-      colors[i * 3] = 0;      // R
-      colors[i * 3 + 1] = 0;  // G
-      colors[i * 3 + 2] = 0;  // B
+      colors[i * 3] = baseColor.r;
+      colors[i * 3 + 1] = baseColor.g;
+      colors[i * 3 + 2] = baseColor.b;
     }
     buffer.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
 
@@ -378,8 +477,7 @@ class GcodeRenderer {
     this.pointGeometry = new THREE.Points(buffer, material);
 
     if (this.enableCylindricalTransform) {
-      if (this.cylindricalMainAxis === 'x') this.pointGeometry.rotateZ(-Math.PI / 2);
-      else if (this.cylindricalMainAxis === 'z') this.pointGeometry.rotateX(Math.PI / 2);
+      this.applyCylindricalRotation(this.pointGeometry);
     }
 
     this.pointGeometry.geometry.computeBoundingSphere();

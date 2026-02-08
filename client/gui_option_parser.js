@@ -35,6 +35,10 @@ class GuiOptionParser {
         this.update_setting('layer height', parseFloat(val));
       } else if (key === 'point_size') {
         this.update_setting('point size', parseFloat(val));
+      } else if (key === 'point_color') {
+        this.update_setting('point color', val);
+      } else if (key === 'line_color') {
+        this.update_setting('line color', val);
       } else if (key === 'x_axis') {
         this.update_setting('x axis', val);
       } else if (key === 'y_axis') {
