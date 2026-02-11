@@ -241,12 +241,8 @@ class GcodeRenderer {
     const nearObj = intersections.length > 0 ? intersections[0] : null;
     if (nearObj !== null) {
       const index = nearObj.index;
-      const pointIndex = index * 3;
-      const point = this.pointGeometry.geometry.attributes.position.array.slice(
-        pointIndex,
-        pointIndex + 3,
-      );
-      this.cursorPositionText.innerText = `(${point[0].toFixed(3)}, ${point[1].toFixed(3)}, ${point[2].toFixed(3)})`;
+      const point = nearObj.point;
+      this.cursorPositionText.innerText = `(${point.x.toFixed(3)}, ${point.y.toFixed(3)}, ${point.z.toFixed(3)})`;
       this.cursorPositionContainer.style.display = "block";
 
       // Update highlighted point
