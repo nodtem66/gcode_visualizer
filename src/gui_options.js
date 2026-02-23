@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS = {
   "point_color": "#000000",
   "line_color": "#0000ff",
   "background_color": "#ffffff",
+  "curve_resolution": 0.5,
   "x_axis": "x",
   "y_axis": "y",
   "z_axis": "z",
@@ -41,6 +42,10 @@ class GuiOptions {
       .add(this.settings, "point_size", 1, 20)
       .name("Point Size")
       .onFinishChange(this.emit.bind(this, "point_size"));
+    gui
+      .add(this.settings, "curve_resolution", 0.001, 100)
+      .name("Curve Resolution")
+      .onFinishChange(this.emit.bind(this, "curve_resolution"));
     gui
       .addColor(this.settings, "point_color")
       .name("Point Color")
@@ -85,6 +90,7 @@ class GuiOptions {
       .add(this.settings, "cylindrical_rendering_diameter", 0, 100)
       .name("Initial Height")
       .onFinishChange(this.emit.bind(this, "cylindrical_rendering_diameter"));
+    gui.close();
     this.gui = gui;
   }
 

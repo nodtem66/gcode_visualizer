@@ -1,4 +1,4 @@
-client/node_modules/
-client/private/
+node_modules/
+private/
 .vite/
 dist/

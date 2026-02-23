@@ -2,7 +2,7 @@ const RELATIVE_POSITION = 0;
 const ABSOLUTE_POSITION = 1;
 
 class JsonGeometryParser {
-  position = {};
+  position = { x: 0, y: 0, z: 0 };
   positionSystem = ABSOLUTE_POSITION;
   feedrate = 100;
   geometry = [];
@@ -59,35 +59,53 @@ class JsonGeometryParser {
     return;
   }
 
+  /*
+   * Gets the values for all axes (x, y, z) based on the current axis remapping and position system
+   * If no axis values are provided, returns null to indicate no movement
+   * If in absolute mode, uses the provided axis values or defaults to current position if not provided
+   * If in relative mode, adds the provided axis values to the current position (or defaults to 0 if not provided)
+   * @param {object} args - The arguments object from the gcode command, which may contain axis values based on remapping
+   * @returns {object|null} - An object with x, y, z values for the new position, or null if no axis values are provided
+   */
   getAllAxesValues(args) {
     const vals = { x: 0, y: 0, z: 0 };
+    const val_x = this.getAxisValue(args, "x");
+    const val_y = this.getAxisValue(args, "y");
+    const val_z = this.getAxisValue(args, "z");
+    if (val_x === undefined && val_y === undefined && val_z === undefined) {
+      return null;
+    }
     if (this.isAbsolutePosition()) {
-      const val_x = this.getAxisValue(args, "x");
-      const val_y = this.getAxisValue(args, "y");
-      const val_z = this.getAxisValue(args, "z");
-      vals.x = val_x === undefined ? this.position.x : val_x;
-      vals.y = val_y === undefined ? this.position.y : val_y;
-      vals.z = val_z === undefined ? this.position.z : val_z;
+      vals.x = val_x ?? this.position.x;
+      vals.y = val_y ?? this.position.y;
+      vals.z = val_z ?? this.position.z;
     } else if (this.isRelativePosition()) {
-      vals.x = this.position.x + (this.getAxisValue(args, "x") || 0);
-      vals.y = this.position.y + (this.getAxisValue(args, "y") || 0);
-      vals.z = this.position.z + (this.getAxisValue(args, "z") || 0);
+      vals.x = this.position.x + (val_x || 0);
+      vals.y = this.position.y + (val_y || 0);
+      vals.z = this.position.z + (val_z || 0);
     }
     return vals;
   }
 
   G0(args) {
-    const prevPosition = Object.assign({}, this.position);
     const vals = this.getAllAxesValues(args);
+    if (vals === null) {
+      return;
+    }
+    const prevPosition = Object.assign({}, this.position);
     this.position.x = vals.x;
     this.position.y = vals.y;
     this.position.z = vals.z;
+    
+    if (args.f) {
+      this.feedrate = args.f;
+    }
 
     this.geometry.push({
       type: "line",
       start: [prevPosition.x, prevPosition.y, prevPosition.z],
       end: [this.position.x, this.position.y, this.position.z],
-      feedrate: args.f || this.feedrate,
+      feedrate: this.feedrate,
     });
     this.cursorPosition.push([
       this.position.x,
@@ -101,11 +119,18 @@ class JsonGeometryParser {
   }
 
   G2(args, dir = "cw") {
-    const prevPosition = Object.assign({}, this.position);
     const vals = this.getAllAxesValues(args);
+    if (vals === null) {
+      return;
+    }
+    const prevPosition = Object.assign({}, this.position);
     this.position.x = vals.x;
     this.position.y = vals.y;
     this.position.z = vals.z;
+
+    if (args.f) {
+      this.feedrate = args.f;
+    }
 
     let centerX = args.i || 0;
     let centerY = args.j || 0;
@@ -120,7 +145,7 @@ class JsonGeometryParser {
       start: [prevPosition.x, prevPosition.y, prevPosition.z],
       end: [this.position.x, this.position.y, this.position.z],
       center: [centerX, centerY],
-      feedrate: args.f || this.feedrate,
+      feedrate: this.feedrate,
     });
     this.cursorPosition.push([
       this.position.x,

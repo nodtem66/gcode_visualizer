@@ -5,22 +5,8 @@ class GuiOptionParser {
     this.gui = gui;
   }
 
-  process(gcodeArray) {
-    if (
-      this.gui == null ||
-      this.gui.settings == null ||
-      this.gui.update == null
-    )
-      return;
-
-    gcodeArray.forEach((x) => {
-      if (x.tag) {
-        this.processComment(x.tag);
-      }
-    });
-  }
-
   update_setting(key, value) {
+    if (this.gui == null || this.gui.settings == null) return;
     if (this.gui.settings[key] !== undefined) {
       this.gui.emit(key, value, false); // Emit event without reprocessing file
     }
@@ -37,6 +23,8 @@ class GuiOptionParser {
         this.update_setting("hide_layers", val === "true" || val === true);
       } else if (key === "point_size") {
         this.update_setting("point_size", parseFloat(val));
+      } else if (key === "curve_resolution") {
+        this.update_setting("curve_resolution", parseFloat(val));
       } else if (key === "point_color") {
         this.update_setting("point_color", val);
       } else if (key === "line_color") {

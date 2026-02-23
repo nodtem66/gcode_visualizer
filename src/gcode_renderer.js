@@ -25,8 +25,7 @@ import {
 
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { ViewportGizmo } from "three-viewport-gizmo";
-
-//import CameraControls from "camera-controls";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const THREE = {
   Vector2: Vector2,
@@ -73,8 +72,8 @@ class GcodeRenderer {
   currentBackgroundColor = "#ffffff"; // Current background color from GUI
   highlightedPointMesh = null; // Mesh for the highlighted point visual indicator
   gridVisible = true; // Whether the grid is currently visible
-  lineSegments = []; // Track line segments for style updates
-  curve_segment_length = 0.1; // Length of curve segments for rendering
+  lineSegments = null; // {THREE.BufferGeometry} Track line segments for style updates
+  curve_segment_length = 0.5; // Length of curve segments for rendering
 
   constructor() {
     this.document = document;
@@ -84,7 +83,10 @@ class GcodeRenderer {
     this.renderer = new THREE.WebGLRenderer({ antialias: false });
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setSize(
+      document.documentElement.clientWidth,
+      document.documentElement.clientHeight,
+    );
     this.renderer.setAnimationLoop(this.animate.bind(this));
     document.body.appendChild(this.renderer.domElement);
     this.raycaster.params.Points.threshold = 0.1;
@@ -95,12 +97,13 @@ class GcodeRenderer {
   }
 
   initialize_scene() {
-    const aspect = window.innerWidth / window.innerHeight;
+    const aspect =
+      document.documentElement.clientWidth /
+      document.documentElement.clientHeight;
     const frustumSize = 10;
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(this.currentBackgroundColor);
-    //const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.001, 10000);
     const camera = new THREE.OrthographicCamera(
       (frustumSize * aspect) / -2,
       (frustumSize * aspect) / 2,
@@ -119,7 +122,9 @@ class GcodeRenderer {
     const controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls = controls;
 
-    const viewportGizmo = new ViewportGizmo(this.camera, this.renderer, {type: "cube"});
+    const viewportGizmo = new ViewportGizmo(this.camera, this.renderer, {
+      type: "cube",
+    });
     viewportGizmo.attachControls(this.controls);
 
     this.viewportGizmo = viewportGizmo;
@@ -134,7 +139,9 @@ class GcodeRenderer {
   }
 
   adjustCamera(frustumSize) {
-    const aspect = window.innerWidth / window.innerHeight;
+    const aspect =
+      document.documentElement.clientWidth /
+      document.documentElement.clientHeight;
     this.camera.left = (frustumSize * aspect) / -2;
     this.camera.right = (frustumSize * aspect) / 2;
     this.camera.top = frustumSize / 2;
@@ -144,18 +151,25 @@ class GcodeRenderer {
 
   onWindowResize() {
     const camera = this.camera;
-    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.aspect =
+      document.documentElement.clientWidth /
+      document.documentElement.clientHeight;
     camera.updateProjectionMatrix();
 
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setSize(
+      document.documentElement.clientWidth,
+      document.documentElement.clientHeight,
+    );
     this.viewportGizmo.update();
   }
 
   onPointerClick(event) {
     // calculate pointer position in normalized device coordinates
     // (-1 to +1) for both components
-    this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-    this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    this.pointer.x =
+      (event.clientX / document.documentElement.clientWidth) * 2 - 1;
+    this.pointer.y =
+      -(event.clientY / document.documentElement.clientHeight) * 2 + 1;
     this.queryPoint();
   }
 
@@ -164,6 +178,10 @@ class GcodeRenderer {
     if (event.key === "Escape") {
       this.clearHighlightedPoint();
     }
+  }
+
+  onError(message) {
+    console.error(message);
   }
 
   clearHighlightedPoint() {
@@ -318,12 +336,11 @@ class GcodeRenderer {
 
   updateLineStyle(color) {
     this.currentLineColor = color;
-    this.lineSegments.forEach((line) => {
-      if (!line.material) return;
-      line.material.color.set(color);
-      line.material.linewidth = this.currentLineSize;
-      line.material.needsUpdate = true;
-    });
+    if (this.lineSegments && this.lineSegments.material) {
+      this.lineSegments.material.color.set(color);
+      this.lineSegments.material.linewidth = this.currentLineSize;
+      this.lineSegments.material.needsUpdate = true;
+    }
   }
 
   updateBackgroundColor(color) {
@@ -335,7 +352,7 @@ class GcodeRenderer {
 
   reset() {
     this.highlightedPointIndex = -1;
-    this.lineSegments = [];
+    this.lineSegments = null;
     if (this.highlightedPointMesh) {
       this.scene.remove(this.highlightedPointMesh);
       this.highlightedPointMesh.geometry.dispose();
@@ -452,49 +469,62 @@ class GcodeRenderer {
   }
 
   drawPath(geometry) {
+    const segmentGeometries = [];
     // Normal flat scaffold - draw 3D path using curves
     if (!this.enableCylindricalTransform) {
       const points3D = [];
 
       geometry.forEach((g) => {
         const curve = this.createCurveFromGeometry(g);
-        const curvePoints = curve.getPoints(50);
-        points3D.push(...curvePoints);
+        if (curve instanceof THREE.LineCurve3) {
+          points3D.push(curve.v1, curve.v2);
+        } else {
+          const divisions = Math.max(
+            1,
+            Math.floor(curve.getLength() / this.curve_segment_length),
+          );
+          const curvePoints = curve.getPoints(divisions);
+          points3D.push(...curvePoints);
+        }
       });
-
-      const pathGeometry = new THREE.BufferGeometry().setFromPoints(points3D);
-      const lineMaterial = new THREE.LineBasicMaterial({
-        color: new THREE.Color(this.currentLineColor),
-        linewidth: this.currentLineSize,
-      });
-      const line = new THREE.Line(pathGeometry, lineMaterial);
-      this.lineSegments.push(line);
-      this.scene.add(line);
+      segmentGeometries.push(
+        new THREE.BufferGeometry().setFromPoints(points3D),
+      );
     }
     // Cylindrical scaffold - use curves directly and transform
     else {
       geometry.forEach((g) => {
         const curve = this.createCurveFromGeometry(g);
-        const divisions = Math.max(1, Math.floor(curve.getLength() / this.curve_segment_length));
+        const divisions = Math.max(
+          1,
+          Math.floor(curve.getLength() / this.curve_segment_length),
+        );
         const points3DSegment = curve.getPoints(divisions);
         const transformedSegment = points3DSegment.map((p) =>
           this.transformToCylindrical(p),
         );
 
-        // Draw the transformed segment
-        const segmentGeometry = new THREE.BufferGeometry().setFromPoints(
-          transformedSegment,
+        segmentGeometries.push(
+          new THREE.BufferGeometry().setFromPoints(transformedSegment),
         );
-        const lineMaterial = new THREE.LineBasicMaterial({
-          color: new THREE.Color(this.currentLineColor),
-          linewidth: this.currentLineSize,
-        });
-        const line = new THREE.Line(segmentGeometry, lineMaterial);
-        this.applyCylindricalRotation(line);
-        this.lineSegments.push(line);
-        this.scene.add(line);
       });
     }
+    // Merge all line segments into a single geometry for better performance
+    const mergedSegment = mergeGeometries(segmentGeometries, false);
+    if (mergedSegment === null) {
+      this.onError("Failed to merge line segments");
+      return;
+    }
+    const lineMaterial = new THREE.LineBasicMaterial({
+      color: new THREE.Color(this.currentLineColor),
+      linewidth: this.currentLineSize,
+    });
+    const line = new THREE.Line(mergedSegment, lineMaterial);
+    this.lineSegments = line;
+    if (this.enableCylindricalTransform) {
+      this.applyCylindricalRotation(line);
+    }
+    this.scene.add(line);
   }
 
   drawPoints(points) {
@@ -540,9 +570,9 @@ class GcodeRenderer {
       this.applyCylindricalRotation(this.pointGeometry);
     }
 
-    this.pointGeometry.geometry.computeBoundingSphere();
-    this.pointGeometry.geometry.computeBoundingBox();
-    this.fitCameraToGeometry(this.pointGeometry.geometry);
+    //this.pointGeometry.geometry.computeBoundingSphere();
+    //this.pointGeometry.geometry.computeBoundingBox();
+    //this.fitCameraToGeometry(this.pointGeometry.geometry);
     this.scene.add(this.pointGeometry);
 
     // Update matrix world to ensure transformations are applied

@@ -1,0 +1,19 @@
+{
+  "name": "gcode_visualizer_client",
+  "version": "0.4.0",
+  "type": "module",
+  "dependencies": {
+    "three": "0.182.0",
+    "three-viewport-gizmo": "2.2.0"
+  },
+  "devDependencies": {
+    "@yushijinhun/three-minifier-rollup": "0.4.0"
+  },
+  "scripts": {
+    "dev": "npx vite",
+    "preview": "npx vite preview",
+    "build": "npx vite build",
+    "test": "npx vitest"
+  },
+  "sideEffects": false
+}
