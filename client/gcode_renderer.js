@@ -3,46 +3,40 @@ import {
   Vector3,
   Raycaster,
   WebGLRenderer,
-  Clock,
   Scene,
   Color,
   OrthographicCamera,
   GridHelper,
-  Path,
   Line,
   LineBasicMaterial,
   BufferGeometry,
   Float32BufferAttribute,
   Points,
   PointsMaterial,
-  Vector4,
   Quaternion,
   Matrix4,
   Spherical,
   Box3,
   Sphere,
-  SphereGeometry,
-  MeshBasicMaterial,
-  Mesh,
   Curve,
   LineCurve3,
+  Timer,
 } from "three";
 
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { ViewportGizmo } from "three-viewport-gizmo";
-import CameraControls from "camera-controls";
+
+//import CameraControls from "camera-controls";
 
 const THREE = {
   Vector2: Vector2,
   Vector3: Vector3,
-  Vector4: Vector4,
   Raycaster: Raycaster,
   WebGLRenderer: WebGLRenderer,
-  Clock: Clock,
   Scene: Scene,
   Color: Color,
   OrthographicCamera: OrthographicCamera,
   GridHelper: GridHelper,
-  Path: Path,
   Line: Line,
   LineBasicMaterial: LineBasicMaterial,
   BufferGeometry: BufferGeometry,
@@ -54,14 +48,12 @@ const THREE = {
   Spherical: Spherical,
   Box3: Box3,
   Sphere: Sphere,
-  SphereGeometry: SphereGeometry,
-  MeshBasicMaterial: MeshBasicMaterial,
-  Mesh: Mesh,
   Curve: Curve,
   LineCurve3: LineCurve3,
+  Timer: Timer,
 };
 
-CameraControls.install({ THREE: THREE });
+//CameraControls.install({ THREE: THREE });
 
 class GcodeRenderer {
   raycaster = new THREE.Raycaster();
@@ -82,6 +74,7 @@ class GcodeRenderer {
   highlightedPointMesh = null; // Mesh for the highlighted point visual indicator
   gridVisible = true; // Whether the grid is currently visible
   lineSegments = []; // Track line segments for style updates
+  curve_segment_length = 0.1; // Length of curve segments for rendering
 
   constructor() {
     this.document = document;
@@ -105,7 +98,6 @@ class GcodeRenderer {
     const aspect = window.innerWidth / window.innerHeight;
     const frustumSize = 10;
 
-    this.clock = new THREE.Clock();
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(this.currentBackgroundColor);
     //const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.001, 10000);
@@ -122,41 +114,23 @@ class GcodeRenderer {
     camera.updateProjectionMatrix();
     this.camera = camera;
     this.scene.add(camera);
+    this.clock = new THREE.Timer();
 
-    const controls = new CameraControls(this.camera, this.renderer.domElement);
-    controls.dollySpeed = 1.0;
-    controls.smoothTime = 0;
-    controls.draggingSmoothTime = 0;
-    controls.dollyToCursor = true;
-    controls.infinityDolly = true;
+    const controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls = controls;
 
-    const viewportGizmo = new ViewportGizmo(this.camera, this.renderer);
-    // listeners
-    viewportGizmo.addEventListener("start", () => (controls.enabled = false));
-    viewportGizmo.addEventListener("end", () => (controls.enabled = true));
-    viewportGizmo.addEventListener("change", () => {
-      controls.setPosition(...camera.position.toArray());
-    });
-    controls.addEventListener("update", () => {
-      // Update the the gizmo on controls update
-      controls.getTarget(viewportGizmo.target);
-      viewportGizmo.update();
-    });
-    //viewportGizmo.render();
+    const viewportGizmo = new ViewportGizmo(this.camera, this.renderer, {type: "cube"});
+    viewportGizmo.attachControls(this.controls);
+
     this.viewportGizmo = viewportGizmo;
 
     const helper = new THREE.GridHelper(100, 100, 0xd0d0d0, 0xf0f0f0);
     helper.rotateX(Math.PI / 2);
-    //helper.position.y = - 199;
     helper.material.opacity = 0.1;
     helper.material.transparent = false;
     helper.visible = this.gridVisible;
     this.helper = helper;
     this.scene.add(helper);
-    //viewportGizmo.update();
-
-    //this.renderer.render(this.scene, this.camera);
   }
 
   adjustCamera(frustumSize) {
@@ -175,7 +149,6 @@ class GcodeRenderer {
 
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.viewportGizmo.update();
-    //this.reset();
   }
 
   onPointerClick(event) {
@@ -301,7 +274,11 @@ class GcodeRenderer {
 
     // Create a Points geometry for the highlighted point indicator
     const geometry = new THREE.BufferGeometry();
-    const positionArray = new Float32Array([position.x, position.y, position.z]);
+    const positionArray = new Float32Array([
+      position.x,
+      position.y,
+      position.z,
+    ]);
     geometry.setAttribute(
       "position",
       new THREE.Float32BufferAttribute(positionArray, 3),
@@ -498,7 +475,8 @@ class GcodeRenderer {
     else {
       geometry.forEach((g) => {
         const curve = this.createCurveFromGeometry(g);
-        const points3DSegment = curve.getPoints(50);
+        const divisions = Math.max(1, Math.floor(curve.getLength() / this.curve_segment_length));
+        const points3DSegment = curve.getPoints(divisions);
         const transformedSegment = points3DSegment.map((p) =>
           this.transformToCylindrical(p),
         );
@@ -580,13 +558,9 @@ class GcodeRenderer {
       pathGeometry.boundingBox.max.x - pathGeometry.boundingBox.min.x,
       pathGeometry.boundingBox.max.y - pathGeometry.boundingBox.min.y,
     );
-    this.adjustCamera(frustumSize * 1.5);
-    this.controls.fitToBox(pathGeometry.boundingBox, false, {
-      paddingTop: 10,
-      paddingBottom: 10,
-      paddingLeft: 10,
-      paddingRight: 10,
-    });
+    if (frustumSize > 0) {
+      this.adjustCamera(frustumSize * 1.5);
+    }
   }
 }
 

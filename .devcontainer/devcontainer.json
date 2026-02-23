@@ -3,5 +3,13 @@
 {
 	"name": "Node.js & npm",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "docker.io/library/node:25-alpine"
+	"image": "docker.io/library/node:25-alpine",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"dbaeumer.vscode-eslint",
+				"esbenp.prettier-vscode"
+			]
+		}
+	}
 }
